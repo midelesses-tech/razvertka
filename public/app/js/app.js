@@ -15,7 +15,6 @@ import { Router } from './router.js';
 import { eventBus, EVENTS } from './utils/event-bus.js';
 import { calculateSingleBend, buildStandardProfile, calculateUnfold } from './modules/profile-calculator.js';
 import { initDevPanel, applyGating } from './modules/dev-panel.js';
-import { kFactorByMaterial, MATERIAL_K_FACTOR } from './utils/math-utils.js';
 import { numOrDefault, validateUnfoldParams, markInvalid, clearInvalid } from './utils/validators.js';
 
 const THEME_KEY = 'rzv:theme';
@@ -31,13 +30,17 @@ export class App {
       thickness: 2,
       radius: 3,
       angle: 90,
-      kfactor: 0.33,
-      material: 'steel',
       flangeA: 40,
       flangeB: 40,
       flangeC: 40,
       flangeD: 15,
+      flangeE: 40,
     };
+    /** Сегменты произвольного профиля (для конструктора custom). */
+    this.customSegments = [
+      { length: 40, angle: 90 },
+      { length: 40, angle: 0 },
+    ];
     /** Результат последнего расчёта развёртки. */
     this.lastUnfold = null;
   }
@@ -53,8 +56,8 @@ export class App {
     this._wireInputs();
     this._wireActions();
     this._wireExportBar();
-    this._initMaterialSync();
     this._initFlangeFields();
+    this._initCustomEditor();
     this._initDevPanel();
 
     this.setStatus('Готово', 'ok');
@@ -165,10 +168,11 @@ export class App {
       const el = e.target.closest('[data-input]');
       if (!el) return;
       const r = this._handleInput(el, true);
-      // при смене материала — синхронизировать K-фактор
-      if (el.dataset.input === 'material') this._syncKFactorFromMaterial(r.value);
-      // при смене типа профиля — перерисовать поля полок
-      if (el.dataset.input === 'profile-type') this._renderFlangeFields(r.value);
+      // при смене типа профиля — перерисовать поля полок / конструктор
+      if (el.dataset.input === 'profile-type') {
+        this._renderFlangeFields(r.value);
+        this._toggleCustomEditor(r.value);
+      }
     });
   }
 
@@ -185,11 +189,10 @@ export class App {
       'flange-b': 'flangeB',
       'flange-c': 'flangeC',
       'flange-d': 'flangeD',
+      'flange-e': 'flangeE',
       'thickness': 'thickness',
       'radius': 'radius',
       'angle': 'angle',
-      'kfactor': 'kfactor',
-      'material': 'material',
     };
     const paramName = DOM_TO_PARAM[key];
     if (paramName && paramName in this.unfoldParams) {
@@ -201,31 +204,79 @@ export class App {
     return { value };
   }
 
-  // ---------- Синхронизация материала → K-фактор ----------
-
-  _initMaterialSync() {
-    const sel = document.querySelector('[data-input="material"]');
-    if (sel) this._syncKFactorFromMaterial(sel.value);
-  }
+  // ---------- Поля полок + конструктор произвольного профиля ----------
 
   _initFlangeFields() {
-    // первичная отрисовка полей под текущий профиль
     const sel = document.querySelector('[data-input="profile-type"]');
     const initial = sel?.value || 'L';
     this.unfoldParams.profileType = initial;
     this._renderFlangeFields(initial);
+    this._toggleCustomEditor(initial);
   }
 
-  _syncKFactorFromMaterial(materialKey) {
-    if (materialKey === 'custom') return; // пользовательский K — не трогаем
-    const k = kFactorByMaterial(materialKey);
-    this.unfoldParams.kfactor = k;
-    this.unfoldParams.material = materialKey;
-    const kInput = document.querySelector('[data-input="kfactor"]');
-    if (kInput) {
-      kInput.value = k;
-      eventBus.emit(EVENTS.INPUT_CHANGE, { key: 'kfactor', value: k, route: this.router.route });
+  _initCustomEditor() {
+    // кнопка добавления сегмента в конструкторе
+    document.getElementById('custom-add-segment')?.addEventListener('click', () => {
+      // новый сегмент — без гиба после него (angle=0); пользователь сам задаст угол
+      this.customSegments.push({ length: 20, angle: 0 });
+      this._renderCustomEditor();
+    });
+    // делегированная обработка изменений сегментов и удаления
+    document.getElementById('custom-segments')?.addEventListener('input', (e) => {
+      const row = e.target.closest('[data-seg-index]');
+      if (!row) return;
+      const idx = Number(row.dataset.segIndex);
+      const field = e.target.dataset.segField;
+      if (field === 'length') this.customSegments[idx].length = Number(e.target.value) || 0;
+      if (field === 'angle') this.customSegments[idx].angle = Number(e.target.value) || 0;
+    });
+    document.getElementById('custom-segments')?.addEventListener('click', (e) => {
+      const del = e.target.closest('[data-seg-del]');
+      if (!del) return;
+      const idx = Number(del.dataset.segDel);
+      this.customSegments.splice(idx, 1);
+      this._renderCustomEditor();
+    });
+  }
+
+  _toggleCustomEditor(profileType) {
+    const editor = document.getElementById('custom-editor');
+    const stdFields = document.getElementById('flange-fields-group');
+    if (!editor || !stdFields) return;
+    if (profileType === 'custom') {
+      editor.classList.remove('is-hidden');
+      stdFields.classList.add('is-hidden');
+      this._renderCustomEditor();
+    } else {
+      editor.classList.add('is-hidden');
+      stdFields.classList.remove('is-hidden');
     }
+  }
+
+  _renderCustomEditor() {
+    const list = document.getElementById('custom-segments');
+    if (!list) return;
+    list.innerHTML = '';
+    this.customSegments.forEach((seg, i) => {
+      const row = document.createElement('div');
+      row.className = 'seg-row';
+      row.dataset.segIndex = i;
+      row.innerHTML = `
+        <div class="seg-row__num mono">${i + 1}</div>
+        <div class="field-group">
+          <label class="field-label">Длина, мм</label>
+          <input class="input" type="number" min="0" step="0.1" value="${seg.length}" data-seg-field="length" aria-label="Длина сегмента ${i + 1}" />
+        </div>
+        <div class="field-group">
+          <label class="field-label">Угол гиба, °</label>
+          <input class="input" type="number" min="0" max="180" step="1" value="${seg.angle}" data-seg-field="angle" aria-label="Угол гиба после сегмента ${i + 1}" />
+        </div>
+        <button class="icon-btn seg-row__del" data-seg-del="${i}" title="Удалить сегмент" aria-label="Удалить сегмент ${i + 1}">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        </button>
+      `;
+      list.appendChild(row);
+    });
   }
 
   // ---------- Динамические поля полок под тип профиля ----------
@@ -233,10 +284,11 @@ export class App {
   /**
    * Конфигурация полей для каждого типа профиля + мини-схема сечения.
    * Соглашение о размерах (внешние габариты):
-   *   L: A, B — две полки.
-   *   U: A — полка левая, B — полка правая (разнополочный!), C — высота (стенка).
-   *   G: A, B — полки, C — высота (стенка), D — загиб края внутрь.
-   *   C: A, B — полки, C — высота (стенка), D — отгиб края наружу.
+   *   L: A, B — 2 полки, 1 гиб.
+   *   U: A, B — полки (разнополочный), C — стенка. 2 гиба.
+   *   G: A, B — полки, C — стенка, D — отгиб края. 3 гиба (швеллер + 1 загиб).
+   *   C: A, B, C, D, E — 5 полок, Z-образный. 4 гиба.
+   *   custom: конструктор сегментов (длина + угол).
    */
   static FLANGE_CONFIG = {
     L: {
@@ -260,34 +312,32 @@ export class App {
     },
     G: {
       label: 'Размеры G-профиля, мм',
-      hint: 'A, B — полки, C — высота стенки, D — загиб края внутрь. Четыре гиба 90°.',
-      fields: [
-        { param: 'flangeA', label: 'Полка A', placeholder: 'A' },
-        { param: 'flangeB', label: 'Полка B', placeholder: 'B' },
-        { param: 'flangeC', label: 'Высота C', placeholder: 'C' },
-        { param: 'flangeD', label: 'Загиб D', placeholder: 'D' },
-      ],
-      schema: 'G',
-    },
-    C: {
-      label: 'Размеры C-профиля, мм',
-      hint: 'A, B — полки, C — высота стенки, D — отгиб края наружу. Четыре гиба 90°.',
+      hint: 'A, B — полки, C — стенка, D — отгиб одного края. Три гиба 90° (швеллер + 1 загиб).',
       fields: [
         { param: 'flangeA', label: 'Полка A', placeholder: 'A' },
         { param: 'flangeB', label: 'Полка B', placeholder: 'B' },
         { param: 'flangeC', label: 'Высота C', placeholder: 'C' },
         { param: 'flangeD', label: 'Отгиб D', placeholder: 'D' },
       ],
-      schema: 'C',
+      schema: 'G',
     },
-    custom: {
-      label: 'Размеры заготовки, мм',
-      hint: 'Конструктор произвольного сечения будет добавлен на шаге 4.',
+    C: {
+      label: 'Размеры C-профиля, мм',
+      hint: 'Z-образный профиль: A, E — крайние полки, B, C, D — промежуточные. Четыре гиба 90°.',
       fields: [
         { param: 'flangeA', label: 'Полка A', placeholder: 'A' },
         { param: 'flangeB', label: 'Полка B', placeholder: 'B' },
+        { param: 'flangeC', label: 'Стенка C', placeholder: 'C' },
+        { param: 'flangeD', label: 'Полка D', placeholder: 'D' },
+        { param: 'flangeE', label: 'Полка E', placeholder: 'E' },
       ],
-      schema: 'L',
+      schema: 'C',
+    },
+    custom: {
+      label: 'Произвольный профиль',
+      hint: 'Конструктор: добавляйте сегменты с длиной и углом гиба.',
+      fields: [],
+      schema: null,
     },
   };
 
@@ -323,23 +373,25 @@ export class App {
           <text x="128" y="58" fill="${txtAcc}" style="${fontMono}" text-anchor="middle" transform="rotate(90 128 58)">B</text>
         </svg>`;
       case 'G':
-        // G-профиль: стенка C сверху, полки A/B вниз, загибы D внутрь
-        return `<svg viewBox="0 0 160 110" class="profile-schema">
-          <path d="M30 20 L130 20 L130 70 L110 70 M30 20 L30 70 L50 70" ${pathAttrs}/>
-          <text x="80" y="12" fill="${txtAcc}" style="${fontMono}" text-anchor="middle">C</text>
-          <text x="20" y="48" fill="${txtAcc}" style="${fontMono}" text-anchor="middle" transform="rotate(-90 20 48)">A</text>
-          <text x="140" y="48" fill="${txtAcc}" style="${fontMono}" text-anchor="middle" transform="rotate(90 140 48)">B</text>
-          <text x="80" y="82" fill="${txt}" style="${fontMono}" text-anchor="middle">D ↤  ↦ D</text>
+        // G-профиль: швеллер + один загнутый край. 3 гиба.
+        // [A вниз] [гиб] [C стенка] [гиб] [B вниз] [гиб] [D внутрь]
+        return `<svg viewBox="0 0 170 110" class="profile-schema">
+          <path d="M30 20 L30 80 L140 80 L140 40 L120 40" ${pathAttrs}/>
+          <text x="22" y="52" fill="${txtAcc}" style="${fontMono}" text-anchor="middle" transform="rotate(-90 22 52)">A</text>
+          <text x="85" y="98" fill="${txtAcc}" style="${fontMono}" text-anchor="middle">C</text>
+          <text x="148" y="62" fill="${txtAcc}" style="${fontMono}" text-anchor="middle" transform="rotate(90 148 62)">B</text>
+          <text x="112" y="34" fill="${txt}" style="${fontMono}" text-anchor="middle">D↤</text>
         </svg>`;
       case 'C':
-        // C-профиль: стенка C сверху, полки A/B вниз, отгибы D наружу
-        return `<svg viewBox="0 0 160 110" class="profile-schema">
-          <path d="M10 70 L30 70 L30 20 L130 20 L130 70 L150 70" ${pathAttrs}/>
-          <text x="80" y="12" fill="${txtAcc}" style="${fontMono}" text-anchor="middle">C</text>
-          <text x="24" y="48" fill="${txtAcc}" style="${fontMono}" text-anchor="middle" transform="rotate(-90 24 48)">A</text>
-          <text x="136" y="48" fill="${txtAcc}" style="${fontMono}" text-anchor="middle" transform="rotate(90 136 48)">B</text>
-          <text x="6" y="62" fill="${txt}" style="${fontMono}" text-anchor="middle">D↤</text>
-          <text x="154" y="62" fill="${txt}" style="${fontMono}" text-anchor="middle">↦D</text>
+        // C-профиль: Z-образный, 5 полок A,B,C,D,E, 4 гиба.
+        // ступенчатая форма: A (вниз) → B (вправо) → C (вверх) → D (вправо) → E (вниз)
+        return `<svg viewBox="0 0 180 110" class="profile-schema">
+          <path d="M15 90 L15 55 L65 55 L65 25 L115 25 L115 55 L165 55 L165 90" ${pathAttrs}/>
+          <text x="8" y="74" fill="${txtAcc}" style="${fontMono}" text-anchor="middle" transform="rotate(-90 8 74)">A</text>
+          <text x="40" y="48" fill="${txtAcc}" style="${fontMono}" text-anchor="middle">B</text>
+          <text x="90" y="18" fill="${txtAcc}" style="${fontMono}" text-anchor="middle">C</text>
+          <text x="140" y="48" fill="${txtAcc}" style="${fontMono}" text-anchor="middle">D</text>
+          <text x="172" y="74" fill="${txtAcc}" style="${fontMono}" text-anchor="middle" transform="rotate(90 172 74)">E</text>
         </svg>`;
       default:
         return '';
@@ -361,7 +413,7 @@ export class App {
     const cfg = App.FLANGE_CONFIG[profileType] || App.FLANGE_CONFIG.L;
     if (labelEl) labelEl.textContent = cfg.label;
     if (hintEl) hintEl.textContent = cfg.hint;
-    if (schemaEl) schemaEl.innerHTML = this._profileSchemaSVG(cfg.schema);
+    if (schemaEl) schemaEl.innerHTML = cfg.schema ? this._profileSchemaSVG(cfg.schema) : '';
 
     container.innerHTML = '';
     for (const f of cfg.fields) {
@@ -369,7 +421,8 @@ export class App {
       wrap.className = 'field-group';
       const dataKey = f.param === 'flangeA' ? 'flange-a'
         : f.param === 'flangeB' ? 'flange-b'
-        : f.param === 'flangeC' ? 'flange-c' : 'flange-d';
+        : f.param === 'flangeC' ? 'flange-c'
+        : f.param === 'flangeD' ? 'flange-d' : 'flange-e';
       wrap.innerHTML = `
         <label class="field-label">${this._escape(f.label)}</label>
         <input class="input" type="number" min="1" step="0.1"
@@ -381,10 +434,11 @@ export class App {
       container.appendChild(wrap);
     }
 
-    // сетка: 2 поля — 2 колонки, 3 — 3, 4 — 2×2
+    // сетка под число полей
     const n = cfg.fields.length;
     container.classList.remove('field-row', 'field-row--3');
-    if (n === 3) container.classList.add('field-row--3');
+    if (n >= 4) container.classList.add('field-row');
+    else if (n === 3) container.classList.add('field-row--3');
     else container.classList.add('field-row');
   }
 
@@ -440,78 +494,96 @@ export class App {
 
     // Сначала снимаем подсветку со всех полей
     document.querySelectorAll('[data-input].is-invalid').forEach(clearInvalid);
+    document.querySelectorAll('[data-seg-field].is-invalid').forEach(clearInvalid);
 
-    // Валидация по полям с подсветкой
+    // Базовая валидация (толщина, радиус, угол) — K-фактор убран, всегда 0.5
     const v = validateUnfoldParams({
       thickness: p.thickness,
       radius: p.radius,
       angle: p.angle,
-      kfactor: p.kfactor,
+      kfactor: 0.5,
       flangeA: p.flangeA,
       flangeB: p.flangeB,
     });
     if (!v.ok) {
-      // v.error начинается с "key: сообщение" — подсветим нужное поле
       const match = /^([a-zA-Z]+):/.exec(v.error);
       if (match) {
-        const keyMap = { flangeA: 'flange-a', flangeB: 'flange-b', flangeC: 'flange-c', kfactor: 'kfactor', thickness: 'thickness', radius: 'radius', angle: 'angle' };
+        const keyMap = { flangeA: 'flange-a', flangeB: 'flange-b', flangeC: 'flange-c', flangeD: 'flange-d', flangeE: 'flange-e', thickness: 'thickness', radius: 'radius', angle: 'angle' };
         const sel = keyMap[match[1]] || match[1].toLowerCase();
         const fieldEl = document.querySelector(`[data-input="${sel}"]`);
         markInvalid(fieldEl, v.error);
       }
       this.setStatus('Ошибка ввода', 'error');
       eventBus.emit(EVENTS.TOAST_SHOW, {
-        title: 'Не удалось рассчитать',
-        message: v.error,
-        kind: 'danger',
+        title: 'Не удалось рассчитать', message: v.error, kind: 'danger',
       });
       return;
     }
 
-    // Сегментный расчёт (для стандартного профиля)
     const kind = p.profileType;
     let result;
+
     if (kind === 'custom') {
-      // конструктор появится на шаге 4; пока считаем как single bend
-      result = calculateSingleBend({
-        flangeA: p.flangeA, flangeB: p.flangeB,
-        thickness: p.thickness, radius: p.radius,
-        angle: p.angle, kfactor: p.kfactor,
-      });
+      // Конструктор произвольного профиля: сегменты {length, angle}
+      if (this.customSegments.length === 0) {
+        this.setStatus('Ошибка ввода', 'error');
+        eventBus.emit(EVENTS.TOAST_SHOW, {
+          title: 'Не удалось рассчитать', message: 'Добавьте хотя бы один сегмент', kind: 'danger',
+        });
+        return;
+      }
+      // Построить сегменты: flat(length) + bend(angle) для каждого, кроме последнего (угол 0 = нет гиба)
+      const segs = [];
+      for (let i = 0; i < this.customSegments.length; i++) {
+        const s = this.customSegments[i];
+        if (s.length == null || s.length <= 0) {
+          const el = document.querySelector(`[data-seg-index="${i}"] [data-seg-field="length"]`);
+          markInvalid(el, 'Длина должна быть положительной');
+          this.setStatus('Ошибка ввода', 'error');
+          eventBus.emit(EVENTS.TOAST_SHOW, {
+            title: 'Не удалось рассчитать', message: `Сегмент ${i + 1}: длина должна быть положительной`, kind: 'danger',
+          });
+          return;
+        }
+        segs.push({ type: 'flat', length: s.length, label: `Сегмент ${i + 1}`, tag: `seg-${i}` });
+        if (s.angle > 0) segs.push({ type: 'bend', angle: s.angle, radius: p.radius, label: `Гиб ${i + 1}` });
+      }
+      const calc = calculateUnfold(segs, { thickness: p.thickness, radius: p.radius });
+      const firstBend = calc.bends[0] || {};
+      result = {
+        ok: true,
+        value: {
+          ba: firstBend.ba ?? 0,
+          bd: firstBend.bd ?? 0,
+          totalLength: calc.totalLength,
+          bendCount: calc.bendCount,
+          segments: calc.segments,
+          profile: 'custom',
+          flats: calc.flats,
+          li: calc.li,
+          setback: calc.setback,
+        },
+      };
     } else {
-      // U/G/C требуют flangeC (высота стенки); G/C требуют flangeD (загиб/отгиб)
+      // Стандартный профиль: валидация нужных полок
       const needsC = ['U', 'G', 'C'].includes(kind);
       const needsD = ['G', 'C'].includes(kind);
-      if (needsC && (p.flangeC == null || p.flangeC <= 0)) {
-        const cField = document.querySelector('[data-input="flange-c"]');
-        markInvalid(cField, 'flangeC: высота C должна быть положительной');
+      const needsE = kind === 'C';
+      const fail = (sel, msg) => {
+        markInvalid(document.querySelector(`[data-input="${sel}"]`), msg);
         this.setStatus('Ошибка ввода', 'error');
-        eventBus.emit(EVENTS.TOAST_SHOW, {
-          title: 'Не удалось рассчитать', message: 'Укажите высоту стенки C', kind: 'danger',
-        });
-        return;
-      }
-      if (needsD && (p.flangeD == null || p.flangeD <= 0)) {
-        const dField = document.querySelector('[data-input="flange-d"]');
-        markInvalid(dField, 'flangeD: размер D должен быть положительным');
-        this.setStatus('Ошибка ввода', 'error');
-        eventBus.emit(EVENTS.TOAST_SHOW, {
-          title: 'Не удалось рассчитать', message: 'Укажите размер загиба/отгиба D', kind: 'danger',
-        });
-        return;
-      }
+        eventBus.emit(EVENTS.TOAST_SHOW, { title: 'Не удалось рассчитать', message: msg, kind: 'danger' });
+      };
+      if (needsC && (p.flangeC == null || p.flangeC <= 0)) { fail('flange-c', 'Высота C должна быть положительной'); return; }
+      if (needsD && (p.flangeD == null || p.flangeD <= 0)) { fail('flange-d', 'Размер D должен быть положительным'); return; }
+      if (needsE && (p.flangeE == null || p.flangeE <= 0)) { fail('flange-e', 'Размер E должен быть положительным'); return; }
+
       const segs = buildStandardProfile(kind, {
-        flangeA: p.flangeA,
-        flangeB: p.flangeB,
-        flangeC: p.flangeC,
-        flangeD: p.flangeD,
-        angle: p.angle,
-        thickness: p.thickness,
-        radius: p.radius,
+        flangeA: p.flangeA, flangeB: p.flangeB,
+        flangeC: p.flangeC, flangeD: p.flangeD, flangeE: p.flangeE,
+        angle: p.angle, thickness: p.thickness, radius: p.radius,
       });
-      const calc = calculateUnfold(segs, {
-        thickness: p.thickness, radius: p.radius, kfactor: p.kfactor, material: p.material,
-      });
+      const calc = calculateUnfold(segs, { thickness: p.thickness, radius: p.radius });
       const firstBend = calc.bends[0] || {};
       result = {
         ok: true,
@@ -522,7 +594,6 @@ export class App {
           bendCount: calc.bendCount,
           segments: calc.segments,
           profile: kind,
-          // прямые участки и дуга — для детального readout
           flats: calc.flats,
           li: calc.li,
           setback: calc.setback,
@@ -566,6 +637,8 @@ export class App {
     set('la', fmt(f.La));
     set('lb', fmt(f.Lb));
     set('lc', fmt(f.Lc));
+    set('ld', fmt(f.Ld));
+    set('le', fmt(f.Le));
     set('li', value.li ? `${value.li.toFixed(3)} мм` : '—');
     set('total-length', `${value.totalLength.toFixed(2)} мм`);
   }

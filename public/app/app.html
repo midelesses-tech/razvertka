@@ -90,23 +90,9 @@
                 <input class="input" id="uf-angle" type="number" min="0" max="180" step="1" value="90" data-input="angle" />
               </div>
               <div class="field-group">
-                <label class="field-label" for="uf-material">Материал</label>
-                <div class="select-wrap">
-                  <select class="select" id="uf-material" data-input="material">
-                    <option value="steel">Сталь (K ≈ 0.33)</option>
-                    <option value="aluminum">Алюминий (K ≈ 0.40)</option>
-                    <option value="stainless">Нерж. сталь (K ≈ 0.44)</option>
-                    <option value="brass">Латунь (K ≈ 0.39)</option>
-                    <option value="custom">Свой K…</option>
-                  </select>
-                </div>
+                <label class="field-label">Метод</label>
+                <input class="input" type="text" value="Средняя линия (K=0.5)" disabled title="Расчёт всегда по средней линии: K = S/2" />
               </div>
-            </div>
-
-            <div class="field-group">
-              <label class="field-label" for="uf-kfactor">K-фактор</label>
-              <input class="input" id="uf-kfactor" type="number" min="0" max="1" step="0.01" value="0.33" data-input="kfactor" />
-              <p class="field-hint">0 — нейтральная ось на внутренней поверхности, 0.5 — по середине.</p>
             </div>
 
             <div class="field-group" id="flange-fields-group">
@@ -118,6 +104,19 @@
                 <!-- поля генерируются динамически под тип профиля -->
               </div>
               <p class="field-hint" id="flange-fields-hint"></p>
+            </div>
+
+            <!-- Конструктор произвольного профиля (показывается только для custom) -->
+            <div class="field-group is-hidden" id="custom-editor">
+              <label class="field-label">Сегменты профиля</label>
+              <p class="field-hint">Каждый сегмент — прямой отрезок + угол гиба после него (0 = последний).</p>
+              <div class="seg-list" id="custom-segments">
+                <!-- строки сегментов генерируются в JS -->
+              </div>
+              <button class="btn btn--ghost btn--block" type="button" id="custom-add-segment">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                Добавить сегмент
+              </button>
             </div>
 
             <button class="btn btn--primary btn--block" type="button" data-action="calc-unfold">
@@ -223,9 +222,11 @@
           <div class="view__readout" id="unfold-readout">
             <div class="readout-item"><span class="readout-item__k">Профиль</span><span class="readout-item__v" data-out="profile">—</span></div>
             <div class="readout-item"><span class="readout-item__k">Гибов</span><span class="readout-item__v" data-out="bend-count">—</span></div>
-            <div class="readout-item"><span class="readout-item__k">La (полка A)</span><span class="readout-item__v" data-out="la">—</span></div>
-            <div class="readout-item"><span class="readout-item__k">Lb (полка B)</span><span class="readout-item__v" data-out="lb">—</span></div>
-            <div class="readout-item"><span class="readout-item__k">Lc (стенка)</span><span class="readout-item__v" data-out="lc">—</span></div>
+            <div class="readout-item"><span class="readout-item__k">La</span><span class="readout-item__v" data-out="la">—</span></div>
+            <div class="readout-item"><span class="readout-item__k">Lb</span><span class="readout-item__v" data-out="lb">—</span></div>
+            <div class="readout-item"><span class="readout-item__k">Lc</span><span class="readout-item__v" data-out="lc">—</span></div>
+            <div class="readout-item"><span class="readout-item__k">Ld</span><span class="readout-item__v" data-out="ld">—</span></div>
+            <div class="readout-item"><span class="readout-item__k">Le</span><span class="readout-item__v" data-out="le">—</span></div>
             <div class="readout-item"><span class="readout-item__k">Li (дуга)</span><span class="readout-item__v" data-out="li">—</span></div>
             <div class="readout-item"><span class="readout-item__k">Длина L</span><span class="readout-item__v" data-out="total-length">—</span></div>
           </div>

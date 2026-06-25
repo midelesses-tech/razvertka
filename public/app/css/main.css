@@ -500,6 +500,49 @@ input, select, button { font-size: 14px; }
 }
 
 /* ============================================================
+   КОНСТРУКТОР ПРОИЗВОЛЬНОГО ПРОФИЛЯ (сегменты)
+   ============================================================ */
+.seg-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding-right: 4px;
+  margin-bottom: 8px;
+}
+.seg-row {
+  display: grid;
+  grid-template-columns: 28px 1fr 1fr 36px;
+  gap: 8px;
+  align-items: end;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+.seg-row__num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: var(--radius-sm);
+}
+.seg-row__del {
+  height: 36px;
+  width: 36px;
+  color: var(--danger);
+}
+.seg-row__del:hover {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  border-color: var(--danger);
+}
+
+/* ============================================================
    ПАНЕЛЬ РАЗРАБОТЧИКА (Ctrl+Shift+D)
    ============================================================ */
 .dev-panel {
