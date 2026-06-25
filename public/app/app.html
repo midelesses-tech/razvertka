@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Развёртка и раскрой — приложение</title>
+  <meta name="description" content="Развёртка профилей с учётом K-фактора и оптимизация раскроя листового металла. Работает в браузере, без сервера." />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d97706' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 3h7v7H3z'/%3E%3Cpath d='M14 3h7v7h-7z'/%3E%3Cpath d='M3 14h7v7H3z'/%3E%3Cpath d='M14 14h7v7h-7z'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="css/main.css" />
+  <link rel="stylesheet" href="css/layout.css" />
+  <link rel="stylesheet" href="css/canvas.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <!-- ===================== HEADER ===================== -->
+    <header class="app-header" role="banner">
+      <div class="brand">
+        <span class="brand__mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 3h7v7H3z" /><path d="M14 3h7v7h-7z" />
+            <path d="M3 14h7v7H3z" /><path d="M14 14h7v7h-7z" />
+          </svg>
+        </span>
+        <div class="brand__text">
+          <span class="brand__title">Развёртка &amp; Раскрой</span>
+          <span class="brand__subtitle">листовой металл · онлайн</span>
+        </div>
+      </div>
+
+      <!-- Tab switcher -->
+      <nav class="tabs" role="tablist" aria-label="Режим работы">
+        <button class="tab is-active" role="tab" aria-selected="true" data-route="unfold" id="tab-unfold">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v6l9 4 9-4V7"/></svg>
+          <span>Развёртка</span>
+        </button>
+        <button class="tab" role="tab" aria-selected="false" data-route="nesting" id="tab-nesting">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M3 9h11V3"/><path d="M14 21V9h7"/></svg>
+          <span>Раскрой</span>
+        </button>
+      </nav>
+
+      <div class="header__tools">
+        <button class="icon-btn" id="theme-toggle" type="button" title="Переключить тему" aria-label="Переключить тему">
+          <svg class="icon-sun" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- ===================== MAIN ===================== -->
+    <main class="app-main" role="main">
+
+      <!-- ----- LEFT PANEL ----- -->
+      <aside class="app-sidebar" id="sidebar" aria-label="Панель параметров">
+        <!-- Panel: Развёртка -->
+        <section class="panel" data-panel="unfold" aria-labelledby="panel-unfold-title">
+          <div class="panel__head">
+            <h2 class="panel__title" id="panel-unfold-title">Параметры развёртки</h2>
+            <span class="panel__badge">K-фактор</span>
+          </div>
+
+          <div class="panel__body">
+            <div class="field-group">
+              <label class="field-label" for="uf-profile">Тип профиля</label>
+              <div class="select-wrap">
+                <select class="select" id="uf-profile" data-input="profile-type">
+                  <option value="L">Уголок (L)</option>
+                  <option value="U">Швеллер (U)</option>
+                  <option value="G">G-профиль</option>
+                  <option value="C">C-профиль</option>
+                  <option value="custom">Произвольный…</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field-row">
+              <div class="field-group">
+                <label class="field-label" for="uf-thickness">Толщина S, мм</label>
+                <input class="input" id="uf-thickness" type="number" min="0.1" step="0.1" value="2" data-input="thickness" />
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="uf-radius">Радиус R, мм</label>
+                <input class="input" id="uf-radius" type="number" min="0" step="0.1" value="3" data-input="radius" />
+              </div>
+            </div>
+
+            <div class="field-row">
+              <div class="field-group">
+                <label class="field-label" for="uf-angle">Угол гиба A, °</label>
+                <input class="input" id="uf-angle" type="number" min="0" max="180" step="1" value="90" data-input="angle" />
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="uf-material">Материал</label>
+                <div class="select-wrap">
+                  <select class="select" id="uf-material" data-input="material">
+                    <option value="steel">Сталь (K ≈ 0.33)</option>
+                    <option value="aluminum">Алюминий (K ≈ 0.40)</option>
+                    <option value="stainless">Нерж. сталь (K ≈ 0.44)</option>
+                    <option value="brass">Латунь (K ≈ 0.39)</option>
+                    <option value="custom">Свой K…</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <label class="field-label" for="uf-kfactor">K-фактор</label>
+              <input class="input" id="uf-kfactor" type="number" min="0" max="1" step="0.01" value="0.33" data-input="kfactor" />
+              <p class="field-hint">0 — нейтральная ось на внутренней поверхности, 0.5 — по середине.</p>
+            </div>
+
+            <div class="field-group">
+              <label class="field-label">Размеры полок, мм</label>
+              <div class="field-row">
+                <input class="input" type="number" min="1" step="0.1" value="40" placeholder="A" data-input="flange-a" />
+                <input class="input" type="number" min="1" step="0.1" value="40" placeholder="B" data-input="flange-b" />
+              </div>
+            </div>
+
+            <button class="btn btn--primary btn--block" type="button" data-action="calc-unfold">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+              Рассчитать развёртку
+            </button>
+          </div>
+        </section>
+
+        <!-- Panel: Раскрой -->
+        <section class="panel is-hidden" data-panel="nesting" aria-labelledby="panel-nesting-title">
+          <div class="panel__head">
+            <h2 class="panel__title" id="panel-nesting-title">Параметры раскроя</h2>
+            <span class="panel__badge">Nesting</span>
+          </div>
+
+          <div class="panel__body">
+            <div class="subhead">Лист</div>
+            <div class="field-row">
+              <div class="field-group">
+                <label class="field-label" for="ns-sheet-len">Длина, мм</label>
+                <input class="input" id="ns-sheet-len" type="number" min="1" value="2000" data-input="sheet-length" />
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="ns-sheet-wid">Ширина, мм</label>
+                <input class="input" id="ns-sheet-wid" type="number" min="1" value="1000" data-input="sheet-width" />
+              </div>
+            </div>
+
+            <div class="subhead">Детали</div>
+            <div class="field-row">
+              <div class="field-group">
+                <label class="field-label" for="ns-part-w">Ширина, мм</label>
+                <input class="input" id="ns-part-w" type="number" min="1" value="300" data-input="part-width" />
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="ns-part-l">Длина, мм</label>
+                <input class="input" id="ns-part-l" type="number" min="1" value="500" data-input="part-length" />
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="ns-part-q">Кол-во</label>
+                <input class="input" id="ns-part-q" type="number" min="1" value="8" data-input="part-qty" />
+              </div>
+            </div>
+            <button class="btn btn--ghost btn--block" type="button" data-action="add-part">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+              Добавить деталь
+            </button>
+
+            <div class="subhead">Параметры реза</div>
+            <div class="field-row">
+              <div class="field-group">
+                <label class="field-label" for="ns-kerf">Kerf, мм</label>
+                <input class="input" id="ns-kerf" type="number" min="0" step="0.1" value="2" data-input="kerf" />
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="ns-margin">Отступ, мм</label>
+                <input class="input" id="ns-margin" type="number" min="0" step="0.1" value="10" data-input="margin" />
+              </div>
+            </div>
+
+            <label class="check">
+              <input type="checkbox" data-input="lock-rotation" />
+              <span>Запретить поворот деталей (grain)</span>
+            </label>
+
+            <button class="btn btn--primary btn--block" type="button" data-action="run-nesting">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v18H3z"/><path d="M9 9h6v6H9z"/></svg>
+              Оптимизировать раскрой
+            </button>
+          </div>
+        </section>
+      </aside>
+
+      <!-- ----- CENTER VIEW ----- -->
+      <section class="app-canvas" aria-label="Визуализация">
+        <!-- View: Развёртка -->
+        <div class="view is-active" data-view="unfold">
+          <div class="view__toolbar">
+            <div class="view__title">Сечение и плоская развёртка</div>
+            <div class="view__tools">
+              <button class="chip" data-tool="zoom-fit" title="Показать целиком">⟷ Вписать</button>
+              <button class="chip" data-tool="toggle-bend" title="Линии сгиба">≡ Линии сгиба</button>
+              <button class="chip" data-tool="toggle-dims" title="Размеры">📐 Размеры</button>
+            </div>
+          </div>
+          <div class="view__stage">
+            <div class="stage-split">
+              <div class="stage">
+                <div class="stage__label">Сечение профиля</div>
+                <div class="stage__canvas" id="stage-section">
+                  <div class="placeholder"><span>Сечение появится здесь</span></div>
+                </div>
+              </div>
+              <div class="stage">
+                <div class="stage__label">Плоская развёртка</div>
+                <div class="stage__canvas" id="stage-unfold">
+                  <div class="placeholder"><span>Развёртка появится здесь</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="view__readout" id="unfold-readout">
+            <div class="readout-item"><span class="readout-item__k">BA</span><span class="readout-item__v" data-out="ba">—</span></div>
+            <div class="readout-item"><span class="readout-item__k">BD</span><span class="readout-item__v" data-out="bd">—</span></div>
+            <div class="readout-item"><span class="readout-item__k">Длина L</span><span class="readout-item__v" data-out="total-length">—</span></div>
+          </div>
+        </div>
+
+        <!-- View: Раскрой -->
+        <div class="view is-hidden" data-view="nesting">
+          <div class="view__toolbar">
+            <div class="view__title">Раскладка на листе</div>
+            <div class="view__tools">
+              <button class="chip" data-tool="zoom-fit" title="Показать целиком">⟷ Вписать</button>
+              <button class="chip" data-tool="toggle-waste" title="Подсветка отходов">▦ Отходы</button>
+              <button class="chip" data-tool="toggle-labels" title="Метки деталей">№ Метки</button>
+            </div>
+          </div>
+          <div class="view__stage">
+            <div class="stage stage--full">
+              <div class="stage__label">Лист</div>
+              <div class="stage__canvas" id="stage-sheet">
+                <div class="placeholder"><span>Раскладка появится здесь</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="view__readout" id="nesting-readout">
+            <div class="readout-item"><span class="readout-item__k">Листов</span><span class="readout-item__v" data-out="sheet-count">—</span></div>
+            <div class="readout-item"><span class="readout-item__k">Использование</span><span class="readout-item__v" data-out="utilization">—</span></div>
+            <div class="readout-item"><span class="readout-item__k">Размещено</span><span class="readout-item__v" data-out="placed">—</span></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ===================== FOOTER ===================== -->
+    <footer class="app-footer" role="contentinfo">
+      <div class="footer__status">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">Готово</span>
+      </div>
+      <div class="footer__meta">
+        <span class="footer__seg">Frontend-only · ES6-модули</span>
+        <span class="footer__sep">·</span>
+        <span class="footer__seg">Данные хранятся локально</span>
+        <span class="footer__sep">·</span>
+        <span class="footer__seg">Все функции бесплатны</span>
+      </div>
+      <div class="footer__export" id="export-bar">
+        <button class="chip" data-export="svg" disabled title="Экспорт SVG">SVG</button>
+        <button class="chip" data-export="dxf" disabled title="Экспорт DXF">DXF</button>
+        <button class="chip" data-export="pdf" disabled title="Экспорт PDF">PDF</button>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Toast container -->
+  <div class="toast-stack" id="toast-stack" aria-live="polite" aria-atomic="true"></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
