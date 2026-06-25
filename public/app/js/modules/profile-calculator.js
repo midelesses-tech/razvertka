@@ -51,65 +51,104 @@ import { validateUnfoldParams } from '../utils/validators.js';
 // ───────────────────────── стандартные профили ─────────────────────────
 
 /**
- * Сгенерировать сегменты для стандартного профиля по габаритам.
+ * Соглашение о размерах (внешние габариты сечения):
  *
- * Соглашение о полках:
- *   - L (уголок):    2 полки A, B, один гиб.
- *   - U (швеллер):   3 полки (B, A, B) — основание A, две полки B по краям, 2 гиба.
- *   - G (G-профиль): основание A, две полки B вверх, загибы C внутрь — 3 гиба.
- *   - C (C-профиль): отгибы C на концах, полки B, основание A — 4 гиба.
+ *   L (уголок):  A — полка A, B — полка B.                 1 гиб.
+ *   U (швеллер): A — полка левая, B — полка правая,        2 гиба.
+ *                C — высота (стенка).
+ *   G (профиль): A — полка левая, B — полка правая,        3 гиба.
+ *                C — высота (стенка), D — загиб края внутрь.
+ *   C (профиль): A — полка левая, B — полка правая,        4 гиба.
+ *                C — высота (стенка), D — отгиб края наружу.
  *
- * Угол гиба берётся из dims.angle (по умолчанию 90°). Радиус каждого гиба
- * задаётся равным 0 здесь и заполняется общим радиусом в calculateUnfold
- * (если у сегмента radius === 0, берётся общий R из параметров).
+ * Модель расчёта (как у onlinerazvertka.ru):
+ *   A, B, C, D — внешние габариты. Для каждого гиба вычисляется
+ *   setback = (R + S) · tan(угол/2). Прямой участок полки = габарит − setback,
+ *   прямой участок стенки (между двумя гибами) = габарит − 2·setback.
+ *   Полная развёртка L = Σ(прямые участки) + n · Li, где Li = BA.
  *
- * @param {string} kind      'L' | 'U' | 'G' | 'C'
- * @param {{flangeA:number, flangeB:number, flangeC?:number, angle?:number}} dims
- * @returns {Segment[]}
+ * @param {string} kind  'L' | 'U' | 'G' | 'C'
+ * @param {{flangeA:number, flangeB:number, flangeC?:number, flangeD?:number, angle:number, thickness:number, radius:number}} dims
+ * @returns {Segment[]}  сегменты с ПРЯМЫМИ участками (уже с вычетом setback)
  */
 export function buildStandardProfile(kind, dims) {
-  const { flangeA, flangeB, flangeC } = dims;
-  const angle = dims.angle ?? 90; // угол гиба из UI, по умолчанию 90°
+  const { flangeA: A, flangeB: B, flangeC: C, flangeD: D } = dims;
+  const angle = dims.angle;
+  const S = dims.thickness;
+  const R = dims.radius;
+  const sb = (R + S) * Math.tan(toRad(angle) / 2); // setback на один гиб
   const k = kind.toUpperCase();
+
+  const flat = (length, label, tag) => ({
+    type: 'flat', length: Math.max(0, length), label, tag,
+  });
+  const bend = (label, n) => ({
+    type: 'bend', angle, radius: R, label, index: n,
+  });
+
   switch (k) {
-    case 'L':
+    case 'L': {
+      // [полка A] [гиб] [полка B]
+      const La = A - sb;
+      const Lb = B - sb;
       return [
-        { type: 'flat', length: flangeA, label: 'Полка A' },
-        { type: 'bend', angle, radius: 0, label: 'Гиб 1' },
-        { type: 'flat', length: flangeB, label: 'Полка B' },
+        flat(La, 'Полка A (La)', 'flange-a'),
+        bend('Гиб 1', 1),
+        flat(Lb, 'Полка B (Lb)', 'flange-b'),
       ];
-    case 'U':
+    }
+    case 'U': {
+      // [полка A] [гиб] [стенка C] [гиб] [полка B]  — разнополочный
+      const La = A - sb;
+      const Lc = C - 2 * sb;
+      const Lb = B - sb;
       return [
-        { type: 'flat', length: flangeB, label: 'Полка B (левая)' },
-        { type: 'bend', angle, radius: 0, label: 'Гиб 1' },
-        { type: 'flat', length: flangeA, label: 'Основание A' },
-        { type: 'bend', angle, radius: 0, label: 'Гиб 2' },
-        { type: 'flat', length: flangeB, label: 'Полка B (правая)' },
+        flat(La, 'Полка A (La)', 'flange-a'),
+        bend('Гиб 1', 1),
+        flat(Lc, 'Стенка C (Lc)', 'web'),
+        bend('Гиб 2', 2),
+        flat(Lb, 'Полка B (Lb)', 'flange-b'),
       ];
-    case 'G':
-      // G-профиль: основание A, две полки B вверх, загибы flangeC внутрь
+    }
+    case 'G': {
+      // [загиб D] [гиб] [полка A] [гиб] [стенка C] [гиб] [полка B] [гиб] [загиб D]
+      // симметричный: загибы краёв внутрь
+      const d = D ?? C * 0.3;
+      const Ld = d - sb;
+      const La = A - sb;
+      const Lc = C - 2 * sb;
+      const Lb = B - sb;
       return [
-        { type: 'flat', length: flangeB, label: 'Полка B (левая)' },
-        { type: 'bend', angle, radius: 0, label: 'Гиб 1' },
-        { type: 'flat', length: flangeA, label: 'Основание A' },
-        { type: 'bend', angle, radius: 0, label: 'Гиб 2' },
-        { type: 'flat', length: flangeB, label: 'Полка B (правая)' },
-        { type: 'bend', angle, radius: 0, label: 'Гиб 3' },
-        { type: 'flat', length: flangeC ?? flangeA * 0.3, label: 'Загиб C' },
+        flat(Ld, 'Загиб D (Ld)', 'flange-d'),
+        bend('Гиб 1', 1),
+        flat(La, 'Полка A (La)', 'flange-a'),
+        bend('Гиб 2', 2),
+        flat(Lc, 'Стенка C (Lc)', 'web'),
+        bend('Гиб 3', 3),
+        flat(Lb, 'Полка B (Lb)', 'flange-b'),
+        bend('Гиб 4', 4),
+        flat(Ld, 'Загиб D (Ld)', 'flange-d'),
       ];
-    case 'C':
-      // C-профиль: отгибы C на концах, полки B, основание A, симметрично
+    }
+    case 'C': {
+      // [отгиб D] [гиб] [полка A] [гиб] [стенка C] [гиб] [полка B] [гиб] [отгиб D]
+      const d = D ?? C * 0.25;
+      const Ld = d - sb;
+      const La = A - sb;
+      const Lc = C - 2 * sb;
+      const Lb = B - sb;
       return [
-        { type: 'flat', length: flangeC ?? flangeA * 0.25, label: 'Загиб C (левый)' },
-        { type: 'bend', angle, radius: 0, label: 'Гиб 1' },
-        { type: 'flat', length: flangeB, label: 'Полка B (левая)' },
-        { type: 'bend', angle, radius: 0, label: 'Гиб 2' },
-        { type: 'flat', length: flangeA, label: 'Основание A' },
-        { type: 'bend', angle, radius: 0, label: 'Гиб 3' },
-        { type: 'flat', length: flangeB, label: 'Полка B (правая)' },
-        { type: 'bend', angle, radius: 0, label: 'Гиб 4' },
-        { type: 'flat', length: flangeC ?? flangeA * 0.25, label: 'Загиб C (правый)' },
+        flat(Ld, 'Отгиб D (Ld)', 'flange-d'),
+        bend('Гиб 1', 1),
+        flat(La, 'Полка A (La)', 'flange-a'),
+        bend('Гиб 2', 2),
+        flat(Lc, 'Стенка C (Lc)', 'web'),
+        bend('Гиб 3', 3),
+        flat(Lb, 'Полка B (Lb)', 'flange-b'),
+        bend('Гиб 4', 4),
+        flat(Ld, 'Отгиб D (Ld)', 'flange-d'),
       ];
+    }
     default:
       throw new Error(`Неизвестный тип профиля: ${kind}`);
   }
@@ -124,11 +163,14 @@ export function buildStandardProfile(kind, dims) {
  *   - segments: копия сегментов с заполненными ba/bd для гибов;
  *   - totalLength: полная длина плоской развёртки, мм;
  *   - bendCount, flatCount;
- *   - per-bend сводка для таблиц/рендереров.
+ *   - bends: per-bend сводка;
+ *   - flats: прямые участки по тегам { flangeA, flangeB, web, flangeD } —
+ *     для readout (La, Lb, Lc, Ld);
+ *   - li: длина дуги одного гиба (BA) — для readout;
+ *   - setback: внешний setback (R+S)·tan(A/2).
  *
  * @param {Segment[]} segments
  * @param {{thickness:number, radius:number, kfactor:number, material?:string}} params
- * @returns {{segments:Segment[], totalLength:number, bendCount:number, flatCount:number, bends:Object[], kfactor:number}}
  */
 export function calculateUnfold(segments, params) {
   const { thickness: S, radius: R, kfactor: K, material } = params;
@@ -136,9 +178,15 @@ export function calculateUnfold(segments, params) {
 
   let totalLength = 0;
   const bends = [];
+  /** Прямые участки по тегам: { 'flange-a': La, 'flange-b': Lb, 'web': Lc, 'flange-d': Ld } */
+  const flatByTag = {};
   const out = segments.map((seg, i) => {
     if (seg.type === 'flat') {
       totalLength += seg.length;
+      if (seg.tag) {
+        // для повторяющихся тегов (симметричные загибы D) — берём первое вхождение
+        if (!(seg.tag in flatByTag)) flatByTag[seg.tag] = seg.length;
+      }
       return { ...seg };
     }
     // bend
@@ -151,6 +199,8 @@ export function calculateUnfold(segments, params) {
     return enriched;
   });
 
+  const sb = (R + S) * Math.tan(toRad(bends[0]?.angle ?? 90) / 2);
+
   return {
     segments: out,
     totalLength: round(totalLength, 3),
@@ -158,6 +208,15 @@ export function calculateUnfold(segments, params) {
     flatCount: out.filter((s) => s.type === 'flat').length,
     bends,
     kfactor: k,
+    // прямые участки для readout (внешние габариты − setback)
+    flats: {
+      La: flatByTag['flange-a'] ?? 0,  // полка A
+      Lb: flatByTag['flange-b'] ?? 0,  // полка B
+      Lc: flatByTag['web'] ?? 0,       // стенка C
+      Ld: flatByTag['flange-d'] ?? 0,  // загиб/отгиб D
+    },
+    li: bends[0]?.ba ?? 0,     // длина дуги одного гиба
+    setback: round(sb, 4),
   };
 }
 

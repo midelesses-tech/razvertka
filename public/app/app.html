@@ -111,6 +111,9 @@
 
             <div class="field-group" id="flange-fields-group">
               <label class="field-label" id="flange-fields-label">Размеры полок, мм</label>
+              <div class="profile-schema-box glass" id="profile-schema" aria-hidden="true">
+                <!-- мини-SVG схема сечения генерируется под тип профиля -->
+              </div>
               <div class="field-row" id="flange-fields">
                 <!-- поля генерируются динамически под тип профиля -->
               </div>
@@ -220,8 +223,10 @@
           <div class="view__readout" id="unfold-readout">
             <div class="readout-item"><span class="readout-item__k">Профиль</span><span class="readout-item__v" data-out="profile">—</span></div>
             <div class="readout-item"><span class="readout-item__k">Гибов</span><span class="readout-item__v" data-out="bend-count">—</span></div>
-            <div class="readout-item"><span class="readout-item__k">BA (на гиб)</span><span class="readout-item__v" data-out="ba">—</span></div>
-            <div class="readout-item"><span class="readout-item__k">BD (на гиб)</span><span class="readout-item__v" data-out="bd">—</span></div>
+            <div class="readout-item"><span class="readout-item__k">La (полка A)</span><span class="readout-item__v" data-out="la">—</span></div>
+            <div class="readout-item"><span class="readout-item__k">Lb (полка B)</span><span class="readout-item__v" data-out="lb">—</span></div>
+            <div class="readout-item"><span class="readout-item__k">Lc (стенка)</span><span class="readout-item__v" data-out="lc">—</span></div>
+            <div class="readout-item"><span class="readout-item__k">Li (дуга)</span><span class="readout-item__v" data-out="li">—</span></div>
             <div class="readout-item"><span class="readout-item__k">Длина L</span><span class="readout-item__v" data-out="total-length">—</span></div>
           </div>
         </div>

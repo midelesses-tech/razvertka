@@ -216,6 +216,7 @@
 /* ---------- Readout strip ---------- */
 .view__readout {
   display: flex;
+  flex-wrap: wrap;
   align-items: stretch;
   gap: 1px;
   background: var(--border);

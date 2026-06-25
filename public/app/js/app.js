@@ -35,7 +35,8 @@ export class App {
       material: 'steel',
       flangeA: 40,
       flangeB: 40,
-      flangeC: 20,
+      flangeC: 40,
+      flangeD: 15,
     };
     /** Результат последнего расчёта развёртки. */
     this.lastUnfold = null;
@@ -183,6 +184,7 @@ export class App {
       'flange-a': 'flangeA',
       'flange-b': 'flangeB',
       'flange-c': 'flangeC',
+      'flange-d': 'flangeD',
       'thickness': 'thickness',
       'radius': 'radius',
       'angle': 'angle',
@@ -229,50 +231,55 @@ export class App {
   // ---------- Динамические поля полок под тип профиля ----------
 
   /**
-   * Конфигурация полей для каждого типа профиля.
-   * Каждое поле: { param, label, placeholder, hint }
-   * param — имя поля в unfoldParams (flangeA/flangeB/flangeC).
+   * Конфигурация полей для каждого типа профиля + мини-схема сечения.
+   * Соглашение о размерах (внешние габариты):
+   *   L: A, B — две полки.
+   *   U: A — полка левая, B — полка правая (разнополочный!), C — высота (стенка).
+   *   G: A, B — полки, C — высота (стенка), D — загиб края внутрь.
+   *   C: A, B — полки, C — высота (стенка), D — отгиб края наружу.
    */
   static FLANGE_CONFIG = {
-    // Уголок: две полки A и B, один гиб
     L: {
-      label: 'Размеры полок, мм',
-      hint: 'A и B — длины двух полок уголка. Гиб один, 90°.',
+      label: 'Размеры уголка, мм',
+      hint: 'A и B — внешние длины полок. Один гиб 90°.',
       fields: [
         { param: 'flangeA', label: 'Полка A', placeholder: 'A' },
         { param: 'flangeB', label: 'Полка B', placeholder: 'B' },
       ],
+      schema: 'L',
     },
-    // Швеллер: основание A, две одинаковые полки B, два гиба
     U: {
       label: 'Размеры швеллера, мм',
-      hint: 'A — длина основания (стенки), B — длина полок (обе одинаковые). Два гиба 90°.',
+      hint: 'A — полка левая, B — полка правая (могут различаться), C — высота стенки. Два гиба 90°.',
       fields: [
-        { param: 'flangeA', label: 'Основание A', placeholder: 'A' },
+        { param: 'flangeA', label: 'Полка A', placeholder: 'A' },
         { param: 'flangeB', label: 'Полка B', placeholder: 'B' },
+        { param: 'flangeC', label: 'Высота C', placeholder: 'C' },
       ],
+      schema: 'U',
     },
-    // G-профиль: основание A, две полки B вверх, загибы C внутрь
     G: {
       label: 'Размеры G-профиля, мм',
-      hint: 'A — основание, B — полки вверх, C — загибы краёв внутрь. Три гиба 90°.',
+      hint: 'A, B — полки, C — высота стенки, D — загиб края внутрь. Четыре гиба 90°.',
       fields: [
-        { param: 'flangeA', label: 'Основание A', placeholder: 'A' },
+        { param: 'flangeA', label: 'Полка A', placeholder: 'A' },
         { param: 'flangeB', label: 'Полка B', placeholder: 'B' },
-        { param: 'flangeC', label: 'Загиб C', placeholder: 'C' },
+        { param: 'flangeC', label: 'Высота C', placeholder: 'C' },
+        { param: 'flangeD', label: 'Загиб D', placeholder: 'D' },
       ],
+      schema: 'G',
     },
-    // C-профиль: основание A, две полки B, загибы C на концах
     C: {
       label: 'Размеры C-профиля, мм',
-      hint: 'A — основание, B — полки, C — отгибы на концах. Четыре гиба 90°.',
+      hint: 'A, B — полки, C — высота стенки, D — отгиб края наружу. Четыре гиба 90°.',
       fields: [
-        { param: 'flangeA', label: 'Основание A', placeholder: 'A' },
+        { param: 'flangeA', label: 'Полка A', placeholder: 'A' },
         { param: 'flangeB', label: 'Полка B', placeholder: 'B' },
-        { param: 'flangeC', label: 'Отгиб C', placeholder: 'C' },
+        { param: 'flangeC', label: 'Высота C', placeholder: 'C' },
+        { param: 'flangeD', label: 'Отгиб D', placeholder: 'D' },
       ],
+      schema: 'C',
     },
-    // Произвольный — конструктор на шаге 4, пока те же 2 поля
     custom: {
       label: 'Размеры заготовки, мм',
       hint: 'Конструктор произвольного сечения будет добавлен на шаге 4.',
@@ -280,11 +287,67 @@ export class App {
         { param: 'flangeA', label: 'Полка A', placeholder: 'A' },
         { param: 'flangeB', label: 'Полка B', placeholder: 'B' },
       ],
+      schema: 'L',
     },
   };
 
   /**
-   * Отрисовать поля полок под выбранный тип профиля.
+   * Мини-SVG схема сечения для каждого профиля — с подписанными размерами A/B/C/D.
+   * Показывает, какой отрезок за что отвечает.
+   * @param {string} schema  'L' | 'U' | 'G' | 'C'
+   * @returns {string} inline SVG
+   */
+  _profileSchemaSVG(schema) {
+    const stroke = 'var(--accent)';
+    const fill = 'var(--accent-soft)';
+    const txt = 'var(--text-muted)';
+    const txtAcc = 'var(--accent)';
+    const fontMono = 'font-family: var(--font-mono); font-size: 11px; font-weight: 700;';
+    const pathAttrs = `fill="${fill}" stroke="${stroke}" stroke-width="2" stroke-linejoin="round"`;
+
+    switch (schema) {
+      case 'L':
+        // уголок L: A снизу, B слева вверх
+        return `<svg viewBox="0 0 120 120" class="profile-schema">
+          <path d="M20 20 L20 90 L100 90" ${pathAttrs}/>
+          <text x="58" y="108" fill="${txtAcc}" style="${fontMono}" text-anchor="middle">A</text>
+          <text x="8" y="58" fill="${txtAcc}" style="${fontMono}" text-anchor="middle" transform="rotate(-90 8 58)">B</text>
+          <circle cx="20" cy="90" r="3" fill="${stroke}"/>
+        </svg>`;
+      case 'U':
+        // швеллер U: A слева, B справа, C сверху (стенка)
+        return `<svg viewBox="0 0 140 110" class="profile-schema">
+          <path d="M20 20 L120 20 L120 90 M20 20 L20 90" ${pathAttrs}/>
+          <text x="70" y="12" fill="${txtAcc}" style="${fontMono}" text-anchor="middle">C (стенка)</text>
+          <text x="12" y="58" fill="${txtAcc}" style="${fontMono}" text-anchor="middle" transform="rotate(-90 12 58)">A</text>
+          <text x="128" y="58" fill="${txtAcc}" style="${fontMono}" text-anchor="middle" transform="rotate(90 128 58)">B</text>
+        </svg>`;
+      case 'G':
+        // G-профиль: стенка C сверху, полки A/B вниз, загибы D внутрь
+        return `<svg viewBox="0 0 160 110" class="profile-schema">
+          <path d="M30 20 L130 20 L130 70 L110 70 M30 20 L30 70 L50 70" ${pathAttrs}/>
+          <text x="80" y="12" fill="${txtAcc}" style="${fontMono}" text-anchor="middle">C</text>
+          <text x="20" y="48" fill="${txtAcc}" style="${fontMono}" text-anchor="middle" transform="rotate(-90 20 48)">A</text>
+          <text x="140" y="48" fill="${txtAcc}" style="${fontMono}" text-anchor="middle" transform="rotate(90 140 48)">B</text>
+          <text x="80" y="82" fill="${txt}" style="${fontMono}" text-anchor="middle">D ↤  ↦ D</text>
+        </svg>`;
+      case 'C':
+        // C-профиль: стенка C сверху, полки A/B вниз, отгибы D наружу
+        return `<svg viewBox="0 0 160 110" class="profile-schema">
+          <path d="M10 70 L30 70 L30 20 L130 20 L130 70 L150 70" ${pathAttrs}/>
+          <text x="80" y="12" fill="${txtAcc}" style="${fontMono}" text-anchor="middle">C</text>
+          <text x="24" y="48" fill="${txtAcc}" style="${fontMono}" text-anchor="middle" transform="rotate(-90 24 48)">A</text>
+          <text x="136" y="48" fill="${txtAcc}" style="${fontMono}" text-anchor="middle" transform="rotate(90 136 48)">B</text>
+          <text x="6" y="62" fill="${txt}" style="${fontMono}" text-anchor="middle">D↤</text>
+          <text x="154" y="62" fill="${txt}" style="${fontMono}" text-anchor="middle">↦D</text>
+        </svg>`;
+      default:
+        return '';
+    }
+  }
+
+  /**
+   * Отрисовать поля полок + мини-схему под выбранный тип профиля.
    * Сохраняет введённые значения из unfoldParams.
    * @param {string} profileType  'L' | 'U' | 'G' | 'C' | 'custom'
    */
@@ -292,30 +355,37 @@ export class App {
     const container = document.getElementById('flange-fields');
     const labelEl = document.getElementById('flange-fields-label');
     const hintEl = document.getElementById('flange-fields-hint');
+    const schemaEl = document.getElementById('profile-schema');
     if (!container) return;
 
     const cfg = App.FLANGE_CONFIG[profileType] || App.FLANGE_CONFIG.L;
     if (labelEl) labelEl.textContent = cfg.label;
     if (hintEl) hintEl.textContent = cfg.hint;
+    if (schemaEl) schemaEl.innerHTML = this._profileSchemaSVG(cfg.schema);
 
     container.innerHTML = '';
     for (const f of cfg.fields) {
       const wrap = document.createElement('div');
       wrap.className = 'field-group';
+      const dataKey = f.param === 'flangeA' ? 'flange-a'
+        : f.param === 'flangeB' ? 'flange-b'
+        : f.param === 'flangeC' ? 'flange-c' : 'flange-d';
       wrap.innerHTML = `
         <label class="field-label">${this._escape(f.label)}</label>
         <input class="input" type="number" min="1" step="0.1"
                value="${this.unfoldParams[f.param] ?? ''}"
                placeholder="${this._escape(f.placeholder)}"
-               data-input="${f.param === 'flangeA' ? 'flange-a' : f.param === 'flangeB' ? 'flange-b' : 'flange-c'}"
+               data-input="${dataKey}"
                aria-label="${this._escape(f.label)}" />
       `;
       container.appendChild(wrap);
     }
 
-    // если полей три — переключим на 3-колоночную сетку
-    container.classList.toggle('field-row--3', cfg.fields.length === 3);
-    container.classList.toggle('field-row', cfg.fields.length !== 3);
+    // сетка: 2 поля — 2 колонки, 3 — 3, 4 — 2×2
+    const n = cfg.fields.length;
+    container.classList.remove('field-row', 'field-row--3');
+    if (n === 3) container.classList.add('field-row--3');
+    else container.classList.add('field-row');
   }
 
   // ---------- Кнопки действий ----------
@@ -409,15 +479,24 @@ export class App {
         angle: p.angle, kfactor: p.kfactor,
       });
     } else {
-      // G и C-профили используют flangeC — провалидировать отдельно
-      if ((kind === 'G' || kind === 'C') && (p.flangeC == null || p.flangeC <= 0)) {
+      // U/G/C требуют flangeC (высота стенки); G/C требуют flangeD (загиб/отгиб)
+      const needsC = ['U', 'G', 'C'].includes(kind);
+      const needsD = ['G', 'C'].includes(kind);
+      if (needsC && (p.flangeC == null || p.flangeC <= 0)) {
         const cField = document.querySelector('[data-input="flange-c"]');
-        markInvalid(cField, 'flangeC: полка C должна быть положительной');
+        markInvalid(cField, 'flangeC: высота C должна быть положительной');
         this.setStatus('Ошибка ввода', 'error');
         eventBus.emit(EVENTS.TOAST_SHOW, {
-          title: 'Не удалось рассчитать',
-          message: 'Укажите размер полки C (загиб/отгиб)',
-          kind: 'danger',
+          title: 'Не удалось рассчитать', message: 'Укажите высоту стенки C', kind: 'danger',
+        });
+        return;
+      }
+      if (needsD && (p.flangeD == null || p.flangeD <= 0)) {
+        const dField = document.querySelector('[data-input="flange-d"]');
+        markInvalid(dField, 'flangeD: размер D должен быть положительным');
+        this.setStatus('Ошибка ввода', 'error');
+        eventBus.emit(EVENTS.TOAST_SHOW, {
+          title: 'Не удалось рассчитать', message: 'Укажите размер загиба/отгиба D', kind: 'danger',
         });
         return;
       }
@@ -425,12 +504,14 @@ export class App {
         flangeA: p.flangeA,
         flangeB: p.flangeB,
         flangeC: p.flangeC,
+        flangeD: p.flangeD,
         angle: p.angle,
+        thickness: p.thickness,
+        radius: p.radius,
       });
       const calc = calculateUnfold(segs, {
         thickness: p.thickness, radius: p.radius, kfactor: p.kfactor, material: p.material,
       });
-      // для readout берём значения первого гиба (как репрезентативные)
       const firstBend = calc.bends[0] || {};
       result = {
         ok: true,
@@ -441,6 +522,10 @@ export class App {
           bendCount: calc.bendCount,
           segments: calc.segments,
           profile: kind,
+          // прямые участки и дуга — для детального readout
+          flats: calc.flats,
+          li: calc.li,
+          setback: calc.setback,
         },
       };
     }
@@ -474,10 +559,14 @@ export class App {
       const el = document.querySelector(`[data-out="${key}"]`);
       if (el) el.textContent = text;
     };
+    const f = value.flats || {};
+    const fmt = (v) => (v != null && v !== 0 ? `${v.toFixed(2)} мм` : '—');
     set('profile', value.profile ?? '—');
     set('bend-count', String(value.bendCount ?? '—'));
-    set('ba', `${value.ba.toFixed(3)} мм`);
-    set('bd', `${value.bd.toFixed(3)} мм`);
+    set('la', fmt(f.La));
+    set('lb', fmt(f.Lb));
+    set('lc', fmt(f.Lc));
+    set('li', value.li ? `${value.li.toFixed(3)} мм` : '—');
     set('total-length', `${value.totalLength.toFixed(2)} мм`);
   }
 
