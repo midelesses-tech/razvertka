@@ -275,6 +275,41 @@
   <!-- Toast container -->
   <div class="toast-stack" id="toast-stack" aria-live="polite" aria-atomic="true"></div>
 
+  <!-- Панель разработчика (Ctrl+Shift+D) -->
+  <aside class="dev-panel" id="dev-panel" role="dialog" aria-label="Панель разработчика" aria-hidden="true">
+    <div class="dev-panel__head">
+      <span class="dev-panel__title">Dev Panel <span class="dev-panel__badge is-off" id="dev-premium-badge">FREE</span></span>
+      <button class="dev-panel__close" id="dev-close" aria-label="Закрыть">×</button>
+    </div>
+    <div class="dev-panel__row">
+      <span class="label">Премиум-режим</span>
+      <button class="toggle" id="dev-premium-toggle" role="switch" aria-checked="false" aria-label="Премиум-режим"></button>
+    </div>
+    <div class="dev-panel__row">
+      <span class="label">Очистить проекты</span>
+      <button class="chip" id="dev-clear-projects" type="button">Очистить</button>
+    </div>
+    <p class="dev-panel__hint">
+      Эта панель видна только в режиме разработки. Включите премиум,
+      чтобы протестировать платные функции (DXF без лимита, PDF, конструктор, несколько листов).
+    </p>
+  </aside>
+
+  <!-- Модалка «Премиум» -->
+  <div class="modal-overlay" id="premium-modal" role="dialog" aria-modal="true" aria-labelledby="premium-title" aria-hidden="true">
+    <div class="modal glass--strong">
+      <div class="modal__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      </div>
+      <h3 class="modal__title" id="premium-title">Функция в премиуме</h3>
+      <p class="modal__text" id="premium-text">Эта возможность доступна в премиум-подписке.</p>
+      <div class="modal__actions">
+        <button class="btn btn--ghost" id="premium-close" type="button">Позже</button>
+        <button class="btn btn--primary" id="premium-try" type="button">Попробовать (Dev)</button>
+      </div>
+    </div>
+  </div>
+
   <script type="module" src="js/main.js"></script>
 </body>
 </html>

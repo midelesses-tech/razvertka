@@ -42,3 +42,26 @@ Stage Summary:
 - Разделение: index.html — посадочная (glassmorphism, тёмная по умолчанию), app.html — рабочее приложение из Шага 1.
 - Дизайн: инженерный glassmorphism — полупрозрачные панели поверх тёмного градиента с цветными блобами (янтарный/красный/зелёный), моноширинные цифры, янтарный акцент (без blue/indigo), зернистость против «пластика».
 - Точки расширения сохранены: app.html и его модули (router/event-bus/app) не изменены — Шаги 2–6 продолжаются в app.html.
+
+---
+Task ID: 2
+Agent: main (Senior Frontend)
+Task: Шаг 2 — утилиты (math-utils.js, validators.js), feature-flags.js, storage.js, profile-calculator.js (BA/BD/K-фактор), панель разработчика и UI-гейтинг freemium.
+
+Work Log:
+- Создан js/utils/math-utils.js: константы, скаляры (clamp/lerp/deg↔rad), 2D-векторы (vec/sub/dot/cross/rotate/perp), сегменты и пересечения, дуги/окружности, формулы гибки (bendAllowance/bendDeduction/unfoldLength/neutralOffset), прямоугольники (rect/maxrectsFreeRects), форматирование чисел.
+- Создан js/utils/validators.js: Result-тип ({ok,value}|{ok,error}), валидаторы для толщины/радиуса/угла/K-фактора/длин/kerf/margin, validateUnfoldParams/validateNestingParams, markInvalid/clearInvalid для подсветки полей.
+- Создан js/modules/feature-flags.js: карта FEATURES (tier free/paid + limit), isPremium/setPremium (localStorage), canUse/checkLimit/whyLocked, событие 'flags:change'. Модель: FREE — стандартные профили, 1 лист/10 деталей, SVG+DXF(демо ≤20), 3 проекта; PAID — конструктор сечений, библиотека материалов, несколько листов, grain-lock, PDF, безлимит, CSV.
+- Создан js/modules/storage.js: проекты (list/save/delete/canSaveProject с учётом лимита), настройки UI, произвольные ключи.
+- Создан js/modules/profile-calculator.js: типы сегментов (FLAT/BEND), buildStandardProfile (L/U/G/C), calculateUnfold (Σflat+Σba), calculateSingleBend (L=A+B−BD), buildSectionPolyline (2D-контур с дугами), buildUnfoldLayout (полосы + линии сгиба).
+- Создан js/modules/dev-panel.js: открытие по Ctrl+Shift+D или 5 кликам по логотипу, тумблер премиума, очистка проектов, applyGating() — замочки на [data-feature], модалка «Премиум».
+- Расширены CSS (main.css): .is-locked-wrap/.lock-badge/.limit-hint/.is-invalid, .dev-panel (glassmorphism), .toggle, .modal-overlay/.modal (glassmorphism).
+- В app.html добавлена разметка dev-panel и premium-modal.
+- Переписан js/app.js: импорт калькулятора/dev-panel/feature-flags, реальный расчёт развёртки с выводом BA/BD/L в readout, синхронизация материала→K-фактор, подсветка невалидных полей, пометка data-feature на кнопках экспорта (PDF=paid, DXF=free с лимитом).
+- Верификация в браузере (app.html напрямую): расчёт L-профиля даёт BA=5.749, BD=4.251, L=85.75 (совпадает с ручным расчётом); смена материала steel→aluminum обновляет K 0.33→0.40 и перерасчёт BA=5.969; валидация thickness=0 → is-invalid + тост «Не удалось рассчитать»; dev-панель открывается Ctrl+Shift+D, тумблер премиума блокирует/разблокирует PDF (замочек + модалка); кнопка «Попробовать (Dev)» включает премиум; мобильная адаптация сохранена; lint чист, dev.log без ошибок.
+
+Stage Summary:
+- Математика развёртки полностью работает по формулам листовой гибки с K-фактором.
+- Freemium-гейтинг заложен архитектурно: feature-flags — единый источник правды, UI-гейтинг автоматический, переключение free/paid — одной строкой в setPremium.
+- Панель разработчика позволяет тестировать обе стороны: FREE (замочки, лимиты, модалка) и PREMIUM (полный доступ).
+- Точки расширения для Шага 3: событие UNFOLD_CALCULATED несёт segments+totalLength — рендереры будут слушать его.

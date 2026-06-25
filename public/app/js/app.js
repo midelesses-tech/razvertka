@@ -2,18 +2,21 @@
  * app.js
  * Главный контроллер приложения.
  *
- * Ответственности на старте (Шаг 1):
+ * Ответственности:
  *   - инициализация роутера (вкладки «Развёртка» / «Раскрой»);
  *   - управление темой (светлая/тёмная) с сохранением выбора;
  *   - статус-бар и тосты (подписки на шину событий);
- *   - связывание кнопок действий и полей ввода с шиной событий
- *     (модули последующих шагов будут слушать эти события).
- *
- * Никакой бизнес-логики расчётов здесь нет — только оркестрация UI.
+ *   - связывание кнопок действий и полей ввода с шиной событий;
+ *   - расчёт развёртки через profile-calculator (с Шага 2);
+ *   - инициализация панели разработчика и UI-гейтинга (freemium).
  */
 
 import { Router } from './router.js';
 import { eventBus, EVENTS } from './utils/event-bus.js';
+import { calculateSingleBend, buildStandardProfile, calculateUnfold } from './modules/profile-calculator.js';
+import { initDevPanel, applyGating } from './modules/dev-panel.js';
+import { kFactorByMaterial, MATERIAL_K_FACTOR } from './utils/math-utils.js';
+import { numOrDefault, validateUnfoldParams, markInvalid, clearInvalid } from './utils/validators.js';
 
 const THEME_KEY = 'rzv:theme';
 
@@ -22,6 +25,19 @@ export class App {
     this.router = new Router();
     /** @type {'light' | 'dark'} */
     this.theme = 'light';
+    /** Текущие параметры развёртки (из левой панели). */
+    this.unfoldParams = {
+      profileType: 'L',
+      thickness: 2,
+      radius: 3,
+      angle: 90,
+      kfactor: 0.33,
+      material: 'steel',
+      flangeA: 40,
+      flangeB: 40,
+    };
+    /** Результат последнего расчёта развёртки. */
+    this.lastUnfold = null;
   }
 
   /**
@@ -35,9 +51,14 @@ export class App {
     this._wireInputs();
     this._wireActions();
     this._wireExportBar();
+    this._initMaterialSync();
+    this._initDevPanel();
 
     this.setStatus('Готово', 'ok');
     eventBus.emit('app:ready', { ts: Date.now() });
+
+    // Подсказка про dev-панель в консоли
+    console.info('%c[Dev] Панель разработчика: Ctrl+Shift+D или 5 кликов по логотипу', 'color:#f59e0b');
   }
 
   // ---------- Тема ----------
@@ -51,7 +72,6 @@ export class App {
     const toggle = document.getElementById('theme-toggle');
     toggle?.addEventListener('click', () => this.toggleTheme());
 
-    // Реакция на системную смену темы, если пользователь не выбирал явно
     window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change', (e) => {
       if (!localStorage.getItem(THEME_KEY)) {
         this.theme = e.matches ? 'dark' : 'light';
@@ -79,11 +99,6 @@ export class App {
 
   // ---------- Статус-бар ----------
 
-  /**
-   * Установить сообщение статус-бара.
-   * @param {string} msg
-   * @param {'ok' | 'busy' | 'error'} [kind='ok']
-   */
   setStatus(msg, kind = 'ok') {
     const dot = document.getElementById('status-dot');
     const text = document.getElementById('status-text');
@@ -97,7 +112,6 @@ export class App {
   }
 
   _initStatus() {
-    // Другие модули могут просить сменить статус
     eventBus.on(EVENTS.STATUS_SET, ({ msg, kind }) => this.setStatus(msg, kind));
   }
 
@@ -139,29 +153,50 @@ export class App {
   // ---------- Поля ввода ----------
 
   _wireInputs() {
-    // Любой [data-input] транслирует своё изменение в шину как input:change
     document.addEventListener('input', (e) => {
       const el = e.target.closest('[data-input]');
       if (!el) return;
-      const key = el.dataset.input;
-      const value = el.type === 'checkbox' ? el.checked
-        : el.type === 'number' ? (el.value === '' ? null : Number(el.value))
-        : el.value;
-      eventBus.emit(EVENTS.INPUT_CHANGE, { key, value, route: this.router.route });
+      this._handleInput(el);
     });
-
     document.addEventListener('change', (e) => {
       const el = e.target.closest('[data-input]');
       if (!el) return;
-      // Для select/checkbox дополнительно шлём change
-      if (el.tagName === 'SELECT' || el.type === 'checkbox') {
-        const key = el.dataset.input;
-        const value = el.type === 'checkbox' ? el.checked
-          : el.type === 'number' ? (el.value === '' ? null : Number(el.value))
-          : el.value;
-        eventBus.emit(EVENTS.INPUT_CHANGE, { key, value, route: this.router.route, committed: true });
-      }
+      const r = this._handleInput(el, true);
+      // при смене материала — синхронизировать K-фактор
+      if (el.dataset.input === 'material') this._syncKFactorFromMaterial(r.value);
     });
+  }
+
+  _handleInput(el, committed = false) {
+    const key = el.dataset.input;
+    const value = el.type === 'checkbox' ? el.checked
+      : el.type === 'number' ? (el.value === '' ? null : Number(el.value))
+      : el.value;
+    // кэшируем параметры развёртки
+    if (key in this.unfoldParams) {
+      this.unfoldParams[key] = value;
+    }
+    eventBus.emit(EVENTS.INPUT_CHANGE, { key, value, route: this.router.route, committed });
+    return { value };
+  }
+
+  // ---------- Синхронизация материала → K-фактор ----------
+
+  _initMaterialSync() {
+    const sel = document.querySelector('[data-input="material"]');
+    if (sel) this._syncKFactorFromMaterial(sel.value);
+  }
+
+  _syncKFactorFromMaterial(materialKey) {
+    if (materialKey === 'custom') return; // пользовательский K — не трогаем
+    const k = kFactorByMaterial(materialKey);
+    this.unfoldParams.kfactor = k;
+    this.unfoldParams.material = materialKey;
+    const kInput = document.querySelector('[data-input="kfactor"]');
+    if (kInput) {
+      kInput.value = k;
+      eventBus.emit(EVENTS.INPUT_CHANGE, { key: 'kfactor', value: k, route: this.router.route });
+    }
   }
 
   // ---------- Кнопки действий ----------
@@ -173,17 +208,7 @@ export class App {
       const action = btn.dataset.action;
       switch (action) {
         case 'calc-unfold':
-          this.setStatus('Расчёт развёртки…', 'busy');
-          // Шаг 2 подключит реальный калькулятор; пока заглушка-уведомление
-          eventBus.emit('unfold:calc-request', {});
-          setTimeout(() => {
-            this.setStatus('Готово', 'ok');
-            eventBus.emit(EVENTS.TOAST_SHOW, {
-              title: 'Шаг 1',
-              message: 'Каркас готов. Математика развёртки — на следующем шаге.',
-              kind: 'warn',
-            });
-          }, 250);
+          this._calculateUnfold();
           break;
         case 'run-nesting':
           this.setStatus('Оптимизация раскроя…', 'busy');
@@ -191,7 +216,7 @@ export class App {
           setTimeout(() => {
             this.setStatus('Готово', 'ok');
             eventBus.emit(EVENTS.TOAST_SHOW, {
-              title: 'Шаг 1',
+              title: 'Раскрой',
               message: 'Алгоритм упаковки будет реализован на шаге 5.',
               kind: 'warn',
             });
@@ -205,7 +230,7 @@ export class App {
       }
     });
 
-    // Чипы-инструменты в тулбарах (zoom-fit, toggle-bend, …)
+    // Чипы-инструменты в тулбарах
     document.addEventListener('click', (e) => {
       const chip = e.target.closest('[data-tool]');
       if (!chip) return;
@@ -218,28 +243,145 @@ export class App {
     });
   }
 
+  // ---------- Расчёт развёртки (Шаг 2) ----------
+
+  _calculateUnfold() {
+    this.setStatus('Расчёт развёртки…', 'busy');
+    const p = this.unfoldParams;
+
+    // Сначала снимаем подсветку со всех полей
+    document.querySelectorAll('[data-input].is-invalid').forEach(clearInvalid);
+
+    // Валидация по полям с подсветкой
+    const v = validateUnfoldParams({
+      thickness: p.thickness,
+      radius: p.radius,
+      angle: p.angle,
+      kfactor: p.kfactor,
+      flangeA: p.flangeA,
+      flangeB: p.flangeB,
+    });
+    if (!v.ok) {
+      // v.error начинается с "key: сообщение" — подсветим нужное поле
+      const match = /^([a-zA-Z]+):/.exec(v.error);
+      if (match) {
+        const keyMap = { flangeA: 'flange-a', flangeB: 'flange-b', kfactor: 'kfactor', thickness: 'thickness', radius: 'radius', angle: 'angle' };
+        const sel = keyMap[match[1]] || match[1].toLowerCase();
+        const fieldEl = document.querySelector(`[data-input="${sel}"]`);
+        markInvalid(fieldEl, v.error);
+      }
+      this.setStatus('Ошибка ввода', 'error');
+      eventBus.emit(EVENTS.TOAST_SHOW, {
+        title: 'Не удалось рассчитать',
+        message: v.error,
+        kind: 'danger',
+      });
+      return;
+    }
+
+    // Сегментный расчёт (для стандартного профиля)
+    const kind = p.profileType;
+    let result;
+    if (kind === 'custom') {
+      // конструктор появится на шаге 4; пока считаем как single bend
+      result = calculateSingleBend({
+        flangeA: p.flangeA, flangeB: p.flangeB,
+        thickness: p.thickness, radius: p.radius,
+        angle: p.angle, kfactor: p.kfactor,
+      });
+    } else {
+      const segs = buildStandardProfile(kind, { flangeA: p.flangeA, flangeB: p.flangeB });
+      const calc = calculateUnfold(segs, {
+        thickness: p.thickness, radius: p.radius, kfactor: p.kfactor, material: p.material,
+      });
+      // для readout берём значения первого гиба (как репрезентативные)
+      const firstBend = calc.bends[0] || {};
+      result = {
+        ok: true,
+        value: {
+          ba: firstBend.ba ?? 0,
+          bd: firstBend.bd ?? 0,
+          totalLength: calc.totalLength,
+          bendCount: calc.bendCount,
+          segments: calc.segments,
+          profile: kind,
+        },
+      };
+    }
+
+    if (!result.ok) {
+      this.setStatus('Ошибка расчёта', 'error');
+      eventBus.emit(EVENTS.TOAST_SHOW, {
+        title: 'Не удалось рассчитать',
+        message: result.error,
+        kind: 'danger',
+      });
+      return;
+    }
+
+    this.lastUnfold = result.value;
+    this._renderUnfoldReadout(result.value);
+    this.setStatus('Готово', 'ok');
+    eventBus.emit(EVENTS.UNFOLD_CALCULATED, result.value);
+    eventBus.emit(EVENTS.TOAST_SHOW, {
+      title: 'Развёртка рассчитана',
+      message: `L = ${result.value.totalLength.toFixed(2)} мм · BA = ${result.value.ba.toFixed(3)} · BD = ${result.value.bd.toFixed(3)}`,
+      kind: 'ok',
+    });
+
+    // разрешить экспорт (Шаг 6 подключит реальный экспорт)
+    eventBus.emit('export:availability', { formats: ['svg', 'dxf'] });
+  }
+
+  _renderUnfoldReadout(value) {
+    const set = (key, text) => {
+      const el = document.querySelector(`[data-out="${key}"]`);
+      if (el) el.textContent = text;
+    };
+    set('ba', `${value.ba.toFixed(3)} мм`);
+    set('bd', `${value.bd.toFixed(3)} мм`);
+    set('total-length', `${value.totalLength.toFixed(2)} мм`);
+  }
+
   // ---------- Экспорт ----------
 
   _wireExportBar() {
     const bar = document.getElementById('export-bar');
     if (!bar) return;
+    // Пометить платные форматы для гейтинга
+    bar.querySelectorAll('[data-export]').forEach((b) => {
+      const fmt = b.dataset.export;
+      if (fmt === 'pdf') b.setAttribute('data-feature', 'exportPDF');
+      if (fmt === 'dxf') b.setAttribute('data-feature', 'exportDXF');
+      // svg — бесплатно, без data-feature
+    });
+
     bar.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-export]');
       if (!btn || btn.disabled) return;
       eventBus.emit(EVENTS.EXPORT_REQUEST, { format: btn.dataset.export, route: this.router.route });
-      // Модули экспорта (Шаг 6) обработают запрос; пока информируем
       eventBus.emit(EVENTS.TOAST_SHOW, {
         title: 'Экспорт',
-        message: `Формат ${btn.dataset.export.toUpperCase()} будет доступен на шаге 6.`,
+        message: `Формат ${btn.dataset.export.toUpperCase()} будет реализован на шаге 6.`,
         kind: 'warn',
       });
     });
 
-    // Разрешить/запретить кнопки экспорта по событию
     eventBus.on('export:availability', ({ formats }) => {
       bar.querySelectorAll('[data-export]').forEach((b) => {
-        b.disabled = !formats.includes(b.dataset.export);
+        // не разблокировать платные, если гейтинг их закрыл
+        if (b.classList.contains('is-locked-wrap')) return;
+        if (formats.includes(b.dataset.export)) {
+          b.disabled = false;
+        }
       });
+      applyGating();
     });
+  }
+
+  // ---------- Панель разработчика + гейтинг ----------
+
+  _initDevPanel() {
+    initDevPanel();
   }
 }
