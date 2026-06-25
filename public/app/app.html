@@ -109,12 +109,12 @@
               <p class="field-hint">0 — нейтральная ось на внутренней поверхности, 0.5 — по середине.</p>
             </div>
 
-            <div class="field-group">
-              <label class="field-label">Размеры полок, мм</label>
-              <div class="field-row">
-                <input class="input" type="number" min="1" step="0.1" value="40" placeholder="A" data-input="flange-a" />
-                <input class="input" type="number" min="1" step="0.1" value="40" placeholder="B" data-input="flange-b" />
+            <div class="field-group" id="flange-fields-group">
+              <label class="field-label" id="flange-fields-label">Размеры полок, мм</label>
+              <div class="field-row" id="flange-fields">
+                <!-- поля генерируются динамически под тип профиля -->
               </div>
+              <p class="field-hint" id="flange-fields-hint"></p>
             </div>
 
             <button class="btn btn--primary btn--block" type="button" data-action="calc-unfold">
@@ -218,8 +218,10 @@
             </div>
           </div>
           <div class="view__readout" id="unfold-readout">
-            <div class="readout-item"><span class="readout-item__k">BA</span><span class="readout-item__v" data-out="ba">—</span></div>
-            <div class="readout-item"><span class="readout-item__k">BD</span><span class="readout-item__v" data-out="bd">—</span></div>
+            <div class="readout-item"><span class="readout-item__k">Профиль</span><span class="readout-item__v" data-out="profile">—</span></div>
+            <div class="readout-item"><span class="readout-item__k">Гибов</span><span class="readout-item__v" data-out="bend-count">—</span></div>
+            <div class="readout-item"><span class="readout-item__k">BA (на гиб)</span><span class="readout-item__v" data-out="ba">—</span></div>
+            <div class="readout-item"><span class="readout-item__k">BD (на гиб)</span><span class="readout-item__v" data-out="bd">—</span></div>
             <div class="readout-item"><span class="readout-item__k">Длина L</span><span class="readout-item__v" data-out="total-length">—</span></div>
           </div>
         </div>

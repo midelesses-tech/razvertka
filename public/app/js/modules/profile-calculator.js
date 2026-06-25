@@ -54,57 +54,60 @@ import { validateUnfoldParams } from '../utils/validators.js';
  * Сгенерировать сегменты для стандартного профиля по габаритам.
  *
  * Соглашение о полках:
- *   - L (уголок):    2 полки A, B, один гиб 90°.
- *   - U (швеллер):   3 полки (B, A, B) — основание A, две полки B по краям, 2 гиба 90°.
- *   - G (G-профиль): 4 полки с двумя загибами краёв внутрь — упрощённо 2 гиба 90° + 2 короткие полки.
- *   - C (C-профиль): 4 полки (B, A, B, C) — основание A, полка B вверх, полка B, загиб C; 3 гиба.
+ *   - L (уголок):    2 полки A, B, один гиб.
+ *   - U (швеллер):   3 полки (B, A, B) — основание A, две полки B по краям, 2 гиба.
+ *   - G (G-профиль): основание A, две полки B вверх, загибы C внутрь — 3 гиба.
+ *   - C (C-профиль): отгибы C на концах, полки B, основание A — 4 гиба.
  *
- * Все гибы — 90°, радиус R; толщина S задаётся отдельно (для расчёта BA/BD).
+ * Угол гиба берётся из dims.angle (по умолчанию 90°). Радиус каждого гиба
+ * задаётся равным 0 здесь и заполняется общим радиусом в calculateUnfold
+ * (если у сегмента radius === 0, берётся общий R из параметров).
  *
  * @param {string} kind      'L' | 'U' | 'G' | 'C'
- * @param {{flangeA:number, flangeB:number, flangeC?:number}} dims
+ * @param {{flangeA:number, flangeB:number, flangeC?:number, angle?:number}} dims
  * @returns {Segment[]}
  */
 export function buildStandardProfile(kind, dims) {
   const { flangeA, flangeB, flangeC } = dims;
+  const angle = dims.angle ?? 90; // угол гиба из UI, по умолчанию 90°
   const k = kind.toUpperCase();
   switch (k) {
     case 'L':
       return [
         { type: 'flat', length: flangeA, label: 'Полка A' },
-        { type: 'bend', angle: 90, radius: 0, label: 'Гиб 1' },
+        { type: 'bend', angle, radius: 0, label: 'Гиб 1' },
         { type: 'flat', length: flangeB, label: 'Полка B' },
       ];
     case 'U':
       return [
         { type: 'flat', length: flangeB, label: 'Полка B (левая)' },
-        { type: 'bend', angle: 90, radius: 0, label: 'Гиб 1' },
+        { type: 'bend', angle, radius: 0, label: 'Гиб 1' },
         { type: 'flat', length: flangeA, label: 'Основание A' },
-        { type: 'bend', angle: 90, radius: 0, label: 'Гиб 2' },
+        { type: 'bend', angle, radius: 0, label: 'Гиб 2' },
         { type: 'flat', length: flangeB, label: 'Полка B (правая)' },
       ];
     case 'G':
       // G-профиль: основание A, две полки B вверх, загибы flangeC внутрь
       return [
         { type: 'flat', length: flangeB, label: 'Полка B (левая)' },
-        { type: 'bend', angle: 90, radius: 0, label: 'Гиб 1' },
+        { type: 'bend', angle, radius: 0, label: 'Гиб 1' },
         { type: 'flat', length: flangeA, label: 'Основание A' },
-        { type: 'bend', angle: 90, radius: 0, label: 'Гиб 2' },
+        { type: 'bend', angle, radius: 0, label: 'Гиб 2' },
         { type: 'flat', length: flangeB, label: 'Полка B (правая)' },
-        { type: 'bend', angle: 90, radius: 0, label: 'Гиб 3' },
+        { type: 'bend', angle, radius: 0, label: 'Гиб 3' },
         { type: 'flat', length: flangeC ?? flangeA * 0.3, label: 'Загиб C' },
       ];
     case 'C':
-      // C-профиль: основание A, полка B, загиб C, симметрично
+      // C-профиль: отгибы C на концах, полки B, основание A, симметрично
       return [
         { type: 'flat', length: flangeC ?? flangeA * 0.25, label: 'Загиб C (левый)' },
-        { type: 'bend', angle: 90, radius: 0, label: 'Гиб 1' },
+        { type: 'bend', angle, radius: 0, label: 'Гиб 1' },
         { type: 'flat', length: flangeB, label: 'Полка B (левая)' },
-        { type: 'bend', angle: 90, radius: 0, label: 'Гиб 2' },
+        { type: 'bend', angle, radius: 0, label: 'Гиб 2' },
         { type: 'flat', length: flangeA, label: 'Основание A' },
-        { type: 'bend', angle: 90, radius: 0, label: 'Гиб 3' },
+        { type: 'bend', angle, radius: 0, label: 'Гиб 3' },
         { type: 'flat', length: flangeB, label: 'Полка B (правая)' },
-        { type: 'bend', angle: 90, radius: 0, label: 'Гиб 4' },
+        { type: 'bend', angle, radius: 0, label: 'Гиб 4' },
         { type: 'flat', length: flangeC ?? flangeA * 0.25, label: 'Загиб C (правый)' },
       ];
     default:

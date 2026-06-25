@@ -35,6 +35,7 @@ export class App {
       material: 'steel',
       flangeA: 40,
       flangeB: 40,
+      flangeC: 20,
     };
     /** Результат последнего расчёта развёртки. */
     this.lastUnfold = null;
@@ -52,6 +53,7 @@ export class App {
     this._wireActions();
     this._wireExportBar();
     this._initMaterialSync();
+    this._initFlangeFields();
     this._initDevPanel();
 
     this.setStatus('Готово', 'ok');
@@ -164,6 +166,8 @@ export class App {
       const r = this._handleInput(el, true);
       // при смене материала — синхронизировать K-фактор
       if (el.dataset.input === 'material') this._syncKFactorFromMaterial(r.value);
+      // при смене типа профиля — перерисовать поля полок
+      if (el.dataset.input === 'profile-type') this._renderFlangeFields(r.value);
     });
   }
 
@@ -172,11 +176,26 @@ export class App {
     const value = el.type === 'checkbox' ? el.checked
       : el.type === 'number' ? (el.value === '' ? null : Number(el.value))
       : el.value;
-    // кэшируем параметры развёртки
-    if (key in this.unfoldParams) {
-      this.unfoldParams[key] = value;
+    // Маппинг DOM-ключей (kebab-case) → имена полей unfoldParams (camelCase).
+    // Раньше 'flange-a' не совпадал с 'flangeA', и изменения полок терялись.
+    const DOM_TO_PARAM = {
+      'profile-type': 'profileType',
+      'flange-a': 'flangeA',
+      'flange-b': 'flangeB',
+      'flange-c': 'flangeC',
+      'thickness': 'thickness',
+      'radius': 'radius',
+      'angle': 'angle',
+      'kfactor': 'kfactor',
+      'material': 'material',
+    };
+    const paramName = DOM_TO_PARAM[key];
+    if (paramName && paramName in this.unfoldParams) {
+      this.unfoldParams[paramName] = value;
+      // снимаем подсветку ошибки при исправлении
+      if (el.classList.contains('is-invalid')) clearInvalid(el);
     }
-    eventBus.emit(EVENTS.INPUT_CHANGE, { key, value, route: this.router.route, committed });
+    eventBus.emit(EVENTS.INPUT_CHANGE, { key, value, paramName, route: this.router.route, committed });
     return { value };
   }
 
@@ -185,6 +204,14 @@ export class App {
   _initMaterialSync() {
     const sel = document.querySelector('[data-input="material"]');
     if (sel) this._syncKFactorFromMaterial(sel.value);
+  }
+
+  _initFlangeFields() {
+    // первичная отрисовка полей под текущий профиль
+    const sel = document.querySelector('[data-input="profile-type"]');
+    const initial = sel?.value || 'L';
+    this.unfoldParams.profileType = initial;
+    this._renderFlangeFields(initial);
   }
 
   _syncKFactorFromMaterial(materialKey) {
@@ -197,6 +224,98 @@ export class App {
       kInput.value = k;
       eventBus.emit(EVENTS.INPUT_CHANGE, { key: 'kfactor', value: k, route: this.router.route });
     }
+  }
+
+  // ---------- Динамические поля полок под тип профиля ----------
+
+  /**
+   * Конфигурация полей для каждого типа профиля.
+   * Каждое поле: { param, label, placeholder, hint }
+   * param — имя поля в unfoldParams (flangeA/flangeB/flangeC).
+   */
+  static FLANGE_CONFIG = {
+    // Уголок: две полки A и B, один гиб
+    L: {
+      label: 'Размеры полок, мм',
+      hint: 'A и B — длины двух полок уголка. Гиб один, 90°.',
+      fields: [
+        { param: 'flangeA', label: 'Полка A', placeholder: 'A' },
+        { param: 'flangeB', label: 'Полка B', placeholder: 'B' },
+      ],
+    },
+    // Швеллер: основание A, две одинаковые полки B, два гиба
+    U: {
+      label: 'Размеры швеллера, мм',
+      hint: 'A — длина основания (стенки), B — длина полок (обе одинаковые). Два гиба 90°.',
+      fields: [
+        { param: 'flangeA', label: 'Основание A', placeholder: 'A' },
+        { param: 'flangeB', label: 'Полка B', placeholder: 'B' },
+      ],
+    },
+    // G-профиль: основание A, две полки B вверх, загибы C внутрь
+    G: {
+      label: 'Размеры G-профиля, мм',
+      hint: 'A — основание, B — полки вверх, C — загибы краёв внутрь. Три гиба 90°.',
+      fields: [
+        { param: 'flangeA', label: 'Основание A', placeholder: 'A' },
+        { param: 'flangeB', label: 'Полка B', placeholder: 'B' },
+        { param: 'flangeC', label: 'Загиб C', placeholder: 'C' },
+      ],
+    },
+    // C-профиль: основание A, две полки B, загибы C на концах
+    C: {
+      label: 'Размеры C-профиля, мм',
+      hint: 'A — основание, B — полки, C — отгибы на концах. Четыре гиба 90°.',
+      fields: [
+        { param: 'flangeA', label: 'Основание A', placeholder: 'A' },
+        { param: 'flangeB', label: 'Полка B', placeholder: 'B' },
+        { param: 'flangeC', label: 'Отгиб C', placeholder: 'C' },
+      ],
+    },
+    // Произвольный — конструктор на шаге 4, пока те же 2 поля
+    custom: {
+      label: 'Размеры заготовки, мм',
+      hint: 'Конструктор произвольного сечения будет добавлен на шаге 4.',
+      fields: [
+        { param: 'flangeA', label: 'Полка A', placeholder: 'A' },
+        { param: 'flangeB', label: 'Полка B', placeholder: 'B' },
+      ],
+    },
+  };
+
+  /**
+   * Отрисовать поля полок под выбранный тип профиля.
+   * Сохраняет введённые значения из unfoldParams.
+   * @param {string} profileType  'L' | 'U' | 'G' | 'C' | 'custom'
+   */
+  _renderFlangeFields(profileType) {
+    const container = document.getElementById('flange-fields');
+    const labelEl = document.getElementById('flange-fields-label');
+    const hintEl = document.getElementById('flange-fields-hint');
+    if (!container) return;
+
+    const cfg = App.FLANGE_CONFIG[profileType] || App.FLANGE_CONFIG.L;
+    if (labelEl) labelEl.textContent = cfg.label;
+    if (hintEl) hintEl.textContent = cfg.hint;
+
+    container.innerHTML = '';
+    for (const f of cfg.fields) {
+      const wrap = document.createElement('div');
+      wrap.className = 'field-group';
+      wrap.innerHTML = `
+        <label class="field-label">${this._escape(f.label)}</label>
+        <input class="input" type="number" min="1" step="0.1"
+               value="${this.unfoldParams[f.param] ?? ''}"
+               placeholder="${this._escape(f.placeholder)}"
+               data-input="${f.param === 'flangeA' ? 'flange-a' : f.param === 'flangeB' ? 'flange-b' : 'flange-c'}"
+               aria-label="${this._escape(f.label)}" />
+      `;
+      container.appendChild(wrap);
+    }
+
+    // если полей три — переключим на 3-колоночную сетку
+    container.classList.toggle('field-row--3', cfg.fields.length === 3);
+    container.classList.toggle('field-row', cfg.fields.length !== 3);
   }
 
   // ---------- Кнопки действий ----------
@@ -265,7 +384,7 @@ export class App {
       // v.error начинается с "key: сообщение" — подсветим нужное поле
       const match = /^([a-zA-Z]+):/.exec(v.error);
       if (match) {
-        const keyMap = { flangeA: 'flange-a', flangeB: 'flange-b', kfactor: 'kfactor', thickness: 'thickness', radius: 'radius', angle: 'angle' };
+        const keyMap = { flangeA: 'flange-a', flangeB: 'flange-b', flangeC: 'flange-c', kfactor: 'kfactor', thickness: 'thickness', radius: 'radius', angle: 'angle' };
         const sel = keyMap[match[1]] || match[1].toLowerCase();
         const fieldEl = document.querySelector(`[data-input="${sel}"]`);
         markInvalid(fieldEl, v.error);
@@ -290,7 +409,24 @@ export class App {
         angle: p.angle, kfactor: p.kfactor,
       });
     } else {
-      const segs = buildStandardProfile(kind, { flangeA: p.flangeA, flangeB: p.flangeB });
+      // G и C-профили используют flangeC — провалидировать отдельно
+      if ((kind === 'G' || kind === 'C') && (p.flangeC == null || p.flangeC <= 0)) {
+        const cField = document.querySelector('[data-input="flange-c"]');
+        markInvalid(cField, 'flangeC: полка C должна быть положительной');
+        this.setStatus('Ошибка ввода', 'error');
+        eventBus.emit(EVENTS.TOAST_SHOW, {
+          title: 'Не удалось рассчитать',
+          message: 'Укажите размер полки C (загиб/отгиб)',
+          kind: 'danger',
+        });
+        return;
+      }
+      const segs = buildStandardProfile(kind, {
+        flangeA: p.flangeA,
+        flangeB: p.flangeB,
+        flangeC: p.flangeC,
+        angle: p.angle,
+      });
       const calc = calculateUnfold(segs, {
         thickness: p.thickness, radius: p.radius, kfactor: p.kfactor, material: p.material,
       });
@@ -338,6 +474,8 @@ export class App {
       const el = document.querySelector(`[data-out="${key}"]`);
       if (el) el.textContent = text;
     };
+    set('profile', value.profile ?? '—');
+    set('bend-count', String(value.bendCount ?? '—'));
     set('ba', `${value.ba.toFixed(3)} мм`);
     set('bd', `${value.bd.toFixed(3)} мм`);
     set('total-length', `${value.totalLength.toFixed(2)} мм`);
