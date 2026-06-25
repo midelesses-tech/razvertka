@@ -1,0 +1,154 @@
+/* ============================================================
+   canvas.css — стили визуализации (SVG/Canvas)
+   Стили применяются к элементам, которые рендереры будут
+   генерировать внутри .stage__canvas.
+   ============================================================ */
+
+/* ---------- Базовый SVG-контейнер ---------- */
+.stage__canvas svg.unfold-svg,
+.stage__canvas svg.section-svg,
+.stage__canvas svg.sheet-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+/* фон сцены — лёгкая сетка через pattern рисуется в SVG,
+   здесь задаём базовый фон под неё */
+.stage__canvas {
+  background-color: var(--surface);
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 20px 20px, 20px 20px;
+  background-position: -1px -1px;
+}
+
+/* ---------- Сечение профиля ---------- */
+.section-svg .profile-fill {
+  fill: var(--accent-soft);
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+.section-svg .profile-edge {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+}
+.section-svg .bend-arc {
+  fill: none;
+  stroke: var(--bend-line);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+.section-svg .neutral-axis {
+  fill: none;
+  stroke: var(--bend-line);
+  stroke-width: 1;
+  stroke-dasharray: 6 3 1 3;
+  opacity: .85;
+}
+.section-svg .center-mark {
+  stroke: var(--dim-line);
+  stroke-width: 1;
+}
+
+/* ---------- Развёртка ---------- */
+.unfold-svg .unfold-fill {
+  fill: var(--accent-soft);
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+.unfold-svg .bend-line {
+  stroke: var(--bend-line);
+  stroke-width: 1.6;
+  stroke-dasharray: 8 4;
+}
+.unfold-svg .bend-line.is-hidden { display: none; }
+.unfold-svg .bend-label {
+  fill: var(--bend-line);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+}
+.unfold-svg .dim-line {
+  stroke: var(--dim-line);
+  stroke-width: .8;
+}
+.unfold-svg .dim-text {
+  fill: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.unfold-svg .dim-line.is-hidden,
+.unfold-svg .dim-text.is-hidden { display: none; }
+
+/* ---------- Раскрой листа ---------- */
+.sheet-svg .sheet-rect {
+  fill: var(--surface-2);
+  stroke: var(--border-strong);
+  stroke-width: 2;
+}
+.sheet-svg .sheet-grid {
+  stroke: var(--grid-line-strong);
+  stroke-width: .5;
+}
+.sheet-svg .part-rect {
+  fill: var(--accent-soft);
+  stroke: var(--accent);
+  stroke-width: 1.2;
+}
+.sheet-svg .part-rect.is-selected {
+  stroke: var(--text);
+  stroke-width: 2;
+}
+.sheet-svg .part-label {
+  fill: var(--text);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  pointer-events: none;
+}
+.sheet-svg .waste-region {
+  fill: var(--waste);
+  stroke: none;
+  pointer-events: none;
+}
+.sheet-svg .waste-region.is-hidden { display: none; }
+.sheet-svg .part-label.is-hidden { display: none; }
+.sheet-svg .part-dim {
+  fill: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-anchor: middle;
+}
+
+/* ---------- Общие помощники для SVG ---------- */
+.svg-axis { stroke: var(--text-faint); stroke-width: 1; }
+.svg-axis-tick { stroke: var(--text-faint); stroke-width: 1; }
+.svg-axis-text {
+  fill: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+.svg-cursor-grab { cursor: grab; }
+.svg-cursor-grabbing { cursor: grabbing; }
+
+/* ---------- Скелетон загрузки ---------- */
+.skeleton {
+  position: absolute; inset: 0;
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 37%, var(--surface-2) 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease infinite;
+  border-radius: var(--radius);
+}
+@keyframes skeleton-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
