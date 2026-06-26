@@ -22,6 +22,7 @@ import {
   unfoldLength,
   neutralOffset,
   kFactorByMaterial,
+  kFactorByRS,
   toRad,
   clamp,
   round,
@@ -108,14 +109,14 @@ export function buildStandardProfile(kind, dims) {
       ];
     }
     case 'G': {
-      // [полка A] [гиб] [стенка C] [гиб] [полка B] [гиб] [отгиб D]
-      // швеллер + один загнутый край. 4 прямых участка, 3 гиба.
+      // [полка A] [гиб] [полка B] [гиб] [стенка C] [гиб] [отгиб D]
+      // 4 прямых участка, 3 гиба. A,D — крайние (1 гиб), B,C — промежуточные (2 гиба).
       return [
         flat(A - sb, 'Полка A (La)', 'flange-a'),
         bend('Гиб 1', 1),
-        flat(C - 2 * sb, 'Стенка C (Lc)', 'web'),
+        flat(B - 2 * sb, 'Полка B (Lb)', 'flange-b'),
         bend('Гиб 2', 2),
-        flat(B - sb, 'Полка B (Lb)', 'flange-b'),
+        flat(C - 2 * sb, 'Стенка C (Lc)', 'web'),
         bend('Гиб 3', 3),
         flat(D - sb, 'Отгиб D (Ld)', 'flange-d'),
       ];
@@ -160,8 +161,9 @@ export function buildStandardProfile(kind, dims) {
  */
 export function calculateUnfold(segments, params) {
   const { thickness: S, radius: R } = params;
-  // K-фактор всегда 0.5 (средняя линия) — по решению заказчика.
-  const k = 0.5;
+  // K-фактор определяется автоматически по таблице R/S (как onlinerazvertka.ru).
+  // При R/S→∞ K стремится к 0.5 (средняя линия); при малом R/S — к 0.33.
+  const k = kFactorByRS(R, S);
 
   let totalLength = 0;
   const bends = [];

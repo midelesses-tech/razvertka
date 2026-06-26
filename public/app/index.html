@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Развёртка и Раскрой металлопроката — онлайн для инженеров</title>
-  <meta name="description" content="Бесплатный онлайн-инструмент: расчёт развёртки профилей с учётом K-фактора и оптимизация раскроя листового металла. Экспорт в DXF, SVG, PDF. Работает в браузере, без сервера." />
+  <meta name="description" content="Бесплатный онлайн-инструмент: расчёт развёртки профилей по нейтральной оси (K-фактор по R/S) и оптимизация раскроя листового металла. Экспорт в DXF, SVG, PDF. Работает в браузере, без сервера." />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f59e0b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 3h7v7H3z'/%3E%3Cpath d='M14 3h7v7h-7z'/%3E%3Cpath d='M3 14h7v7H3z'/%3E%3Cpath d='M14 14h7v7h-7z'/%3E%3C/svg%3E" />
   <link rel="stylesheet" href="css/main.css" />
   <link rel="stylesheet" href="css/landing.css" />
@@ -65,7 +65,7 @@
           металлопроката <span class="accent">в браузере</span>
         </h1>
         <p class="hero__subtitle">
-          Считайте плоские развёртки профилей с точным учётом K-фактора, Bend Allowance и Bend Deduction.
+          Считайте плоские развёртки профилей по нейтральной оси с автоматическим K-фактором по таблице R/S.
           Оптимизируйте раскрой листа алгоритмом MaxRects. Экспортируйте в DXF, SVG и PDF —
           для ЧПУ, Компаса и AutoCAD.
         </p>
@@ -151,14 +151,14 @@
             </div>
             <h3 class="feature__title">Развёртка профилей</h3>
             <p class="feature__text">
-              Расчёт плоской развёртки по формулам листовой гибки — не по средней линии,
-              а с учётом K-фактора, Bend Allowance и Bend Deduction.
+              Расчёт плоской развёртки по нейтральной оси: K-фактор определяется автоматически
+              по таблице R/S, длина дуги и прямые участки считаются с учётом setback.
             </p>
             <ul class="feature__list">
               <li>Стандартные профили: уголок (L), швеллер (U), G и C</li>
-              <li>Конструктор произвольного сечения: сегменты, наклоны, радиусы</li>
-              <li>Выбор материала или ручной ввод K-фактора</li>
-              <li>Визуализация сечения, нейтральной оси и линий сгиба</li>
+              <li>Конструктор произвольного сечения: сегменты и углы гиба</li>
+              <li>K-фактор по таблице R/S — как в справочниках</li>
+              <li>Визуализация сечения и линий сгиба</li>
             </ul>
           </article>
 
@@ -220,10 +220,11 @@
       <section class="section" id="math">
         <div class="section__head reveal">
           <div class="section__kicker">Математика</div>
-          <h2 class="section__title">Точный расчёт по формулам гибки</h2>
+          <h2 class="section__title">Точный расчёт по нейтральной оси</h2>
           <p class="section__lead">
-            Длина развёртки считается не по средней линии, а по нейтральной оси с учётом
-            K-фактора. Это даёт корректную длину заготовки для гибки на прессе.
+            Длина развёртки считается по нейтральной оси с учётом K-фактора,
+            который определяется автоматически по отношению R/S — как в справочниках
+            по листовой гибке. Это даёт корректную длину заготовки для пресса.
           </p>
         </div>
 
@@ -232,26 +233,28 @@
             <div class="math__caption">Bend Allowance</div>
             <div class="math__title">Припуск на гиб</div>
             <div class="math__formula">
-              <span class="var">BA</span> <span class="op">=</span> (π <span class="op">/</span> 180) <span class="op">·</span> <span class="var">A</span> <span class="op">·</span> (<span class="var">R</span> <span class="op">+</span> <span class="var">K</span> <span class="op">·</span> <span class="var">S</span>)
+              <span class="var">L<sub>i</sub></span> <span class="op">=</span> (π <span class="op">/</span> 180) <span class="op">·</span> <span class="var">A</span> <span class="op">·</span> (<span class="var">R</span> <span class="op">+</span> <span class="var">K</span> <span class="op">·</span> <span class="var">S</span>)
             </div>
             <p class="math__legend">
-              <b>BA</b> — длина дуги нейтрального слоя при гибке.<br>
-              <b>A</b> — угол гиба в градусах, <b>R</b> — внутренний радиус, <b>S</b> — толщина металла, <b>K</b> — K-фактор (0…0.5).
+              <b>L<sub>i</sub></b> — длина дуги нейтрального слоя при гибке.<br>
+              <b>A</b> — угол гиба в градусах, <b>R</b> — внутренний радиус, <b>S</b> — толщина металла.<br>
+              <b>K</b> — коэффициент положения нейтральной оси, определяется по таблице R/S
+              (0.33 при R/S→0, 0.5 при R/S≥5).
             </p>
           </div>
 
           <div class="math__card glass gradient-border reveal">
-            <div class="math__caption">Bend Deduction</div>
-            <div class="math__title">Вычет на гиб</div>
+            <div class="math__caption">Полная длина</div>
+            <div class="math__title">Развёртка</div>
             <div class="math__formula">
-              <span class="var">BD</span> <span class="op">=</span> 2 <span class="op">·</span> (<span class="var">R</span> <span class="op">+</span> <span class="var">S</span>) <span class="op">·</span> tan(<span class="var">A</span> <span class="op">/</span> 2) <span class="op">−</span> <span class="var">BA</span>
+              <span class="var">L</span> <span class="op">=</span> <span class="var">L</span><sub>1</sub> <span class="op">+</span> <span class="var">L</span><sub>2</sub> <span class="op">+</span> … <span class="op">+</span> <span class="var">L</span><sub>n</sub> <span class="op">+</span> n <span class="op">·</span> <span class="var">L<sub>i</sub></span>
             </div>
             <div class="math__formula">
-              <span class="var">L</span> <span class="op">=</span> <span class="var">A</span><sub>полка</sub> <span class="op">+</span> <span class="var">B</span><sub>полка</sub> <span class="op">−</span> <span class="var">BD</span>
+              <span class="var">L</span><sub>край</sub> <span class="op">=</span> <span class="var">A</span> <span class="op">−</span> (<span class="var">R</span><span class="op">+</span><span class="var">S</span>)·tan(<span class="var">A</span><sub>гиб</sub><span class="op">/</span>2)
             </div>
             <p class="math__legend">
-              <b>BD</b> — вычет, на который уменьшается сумма длин полок до получения плоской заготовки <b>L</b>.
-              Материалы: сталь ≈ 0.33, алюминий ≈ 0.40, нерж. сталь ≈ 0.44, латунь ≈ 0.39.
+              <b>L</b> — полная длина развёртки = сумма прямых участков + n дуг.<br>
+              Крайние полки (1 гиб) вычитают setback один раз, промежуточные (2 гиба) — дважды.
             </p>
           </div>
         </div>
@@ -273,7 +276,7 @@
           <div class="step glass gradient-border reveal">
             <div class="step__num">02 / РАСЧЁТ</div>
             <div class="step__title">Считаете развёртку</div>
-            <p class="step__text">K-фактор, BA и BD применяются автоматически. Видите сечение, нейтральную ось и линии сгиба.</p>
+            <p class="step__text">K-фактор по таблице R/S применяется автоматически. Видите сечение, прямые участки и линии сгиба.</p>
           </div>
           <div class="step glass gradient-border reveal">
             <div class="step__num">03 / РАСКРОЙ</div>

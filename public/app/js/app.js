@@ -312,11 +312,11 @@ export class App {
     },
     G: {
       label: 'Размеры G-профиля, мм',
-      hint: 'A, B — полки, C — стенка, D — отгиб одного края. Три гиба 90° (швеллер + 1 загиб).',
+      hint: '4 полки: A, D — крайние (1 гиб), B, C — промежуточные (2 гиба). Три гиба 90°.',
       fields: [
         { param: 'flangeA', label: 'Полка A', placeholder: 'A' },
         { param: 'flangeB', label: 'Полка B', placeholder: 'B' },
-        { param: 'flangeC', label: 'Высота C', placeholder: 'C' },
+        { param: 'flangeC', label: 'Стенка C', placeholder: 'C' },
         { param: 'flangeD', label: 'Отгиб D', placeholder: 'D' },
       ],
       schema: 'G',
@@ -373,14 +373,14 @@ export class App {
           <text x="128" y="58" fill="${txtAcc}" style="${fontMono}" text-anchor="middle" transform="rotate(90 128 58)">B</text>
         </svg>`;
       case 'G':
-        // G-профиль: швеллер + один загнутый край. 3 гиба.
-        // [A вниз] [гиб] [C стенка] [гиб] [B вниз] [гиб] [D внутрь]
+        // G-профиль: 4 полки A,B,C,D, 3 гиба. A,D — крайние, B,C — промежуточные.
+        // Форма: A (вниз) → B (стенка) → C (полка) → D (загиб)
         return `<svg viewBox="0 0 170 110" class="profile-schema">
-          <path d="M30 20 L30 80 L140 80 L140 40 L120 40" ${pathAttrs}/>
-          <text x="22" y="52" fill="${txtAcc}" style="${fontMono}" text-anchor="middle" transform="rotate(-90 22 52)">A</text>
-          <text x="85" y="98" fill="${txtAcc}" style="${fontMono}" text-anchor="middle">C</text>
-          <text x="148" y="62" fill="${txtAcc}" style="${fontMono}" text-anchor="middle" transform="rotate(90 148 62)">B</text>
-          <text x="112" y="34" fill="${txt}" style="${fontMono}" text-anchor="middle">D↤</text>
+          <path d="M20 90 L20 50 L70 50 L70 20 L150 20" ${pathAttrs}/>
+          <text x="12" y="72" fill="${txtAcc}" style="${fontMono}" text-anchor="middle" transform="rotate(-90 12 72)">A</text>
+          <text x="45" y="44" fill="${txtAcc}" style="${fontMono}" text-anchor="middle">B</text>
+          <text x="110" y="14" fill="${txtAcc}" style="${fontMono}" text-anchor="middle">C</text>
+          <text x="142" y="36" fill="${txtAcc}" style="${fontMono}" text-anchor="middle" transform="rotate(90 142 36)">D</text>
         </svg>`;
       case 'C':
         // C-профиль: Z-образный, 5 полок A,B,C,D,E, 4 гиба.
@@ -496,12 +496,12 @@ export class App {
     document.querySelectorAll('[data-input].is-invalid').forEach(clearInvalid);
     document.querySelectorAll('[data-seg-field].is-invalid').forEach(clearInvalid);
 
-    // Базовая валидация (толщина, радиус, угол) — K-фактор убран, всегда 0.5
+    // Базовая валидация (толщина, радиус, угол) — K-фактор считается автоматически по R/S
     const v = validateUnfoldParams({
       thickness: p.thickness,
       radius: p.radius,
       angle: p.angle,
-      kfactor: 0.5,
+      kfactor: 0.5, // заглушка для валидатора (не используется, K считается по таблице)
       flangeA: p.flangeA,
       flangeB: p.flangeB,
     });
