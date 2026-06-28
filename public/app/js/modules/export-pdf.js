@@ -96,26 +96,36 @@ export async function exportUnfoldPDF(data, filename = 'unfold.pdf') {
   const secScale = Math.min(secAreaW / (totalLen * 1.2), secAreaH / (maxLen * 1.5));
 
   // Сначала вычисляем все точки, потом сдвигаем чтобы центрировать
-  let drawX = 0, drawY = 0, dir = 0;
+  // ВАЖНО: итерируем ВСЕ segments (включая bends) для отслеживания направления
+  const startDir = data.startDir || 0;
+  let drawX = 0, drawY = 0, dir = startDir;
   const points = [{ x: 0, y: 0 }];
   const labelPoints = [];
+  let flatIdx = 0;
+  const letters = ['a','b','c','d','e','f','g','h'];
 
-  flatSegs.forEach((seg, idx) => {
-    const len = (seg.length || 0) * secScale;
-    const rad = dir * Math.PI / 180;
-    const nx = drawX + len * Math.cos(rad);
-    const ny = drawY + len * Math.sin(rad);
-    // Метка буквы в середине сегмента
-    const midX = drawX + (len / 2) * Math.cos(rad);
-    const midY = drawY + (len / 2) * Math.sin(rad);
-    const perpRad = (dir + 90) * Math.PI / 180;
-    const lblX = midX + 5 * Math.cos(perpRad);
-    const lblY = midY + 5 * Math.sin(perpRad);
-    const letters = ['a','b','c','d','e','f','g','h'];
-    labelPoints.push({ x: lblX, y: lblY, letter: letters[idx] || '?' });
-    drawX = nx; drawY = ny;
-    points.push({ x: drawX, y: drawY });
-  });
+  for (const seg of segs) {
+    if (seg.type === 'flat') {
+      const len = (seg.length || 0) * secScale;
+      const rad = dir * Math.PI / 180;
+      const nx = drawX + len * Math.cos(rad);
+      const ny = drawY + len * Math.sin(rad);
+      // Метка буквы в середине сегмента
+      const midX = drawX + (len / 2) * Math.cos(rad);
+      const midY = drawY + (len / 2) * Math.sin(rad);
+      const perpRad = (dir + 90) * Math.PI / 180;
+      const lblX = midX + 5 * Math.cos(perpRad);
+      const lblY = midY + 5 * Math.sin(perpRad);
+      labelPoints.push({ x: lblX, y: lblY, letter: letters[flatIdx] || '?' });
+      drawX = nx; drawY = ny;
+      points.push({ x: drawX, y: drawY });
+      flatIdx++;
+    } else if (seg.type === 'bend') {
+      // Меняем направление (sign=-1 = против часовой = "вверх" в SVG/PDF)
+      const sign = seg.sign ?? -1;
+      dir = dir + sign * (seg.angle || 90);
+    }
+  }
 
   // Находим bounding box
   const xs = points.map(p => p.x);
@@ -179,17 +189,17 @@ export async function exportUnfoldPDF(data, filename = 'unfold.pdf') {
   doc.setDrawColor(217, 119, 6);
   doc.setLineWidth(0.3);
   let x = 0;
-  let flatIdx = 0;
-  const letters = ['a','b','c','d','e','f','g','h'];
+  let unfoldFlatIdx = 0;
+  const unfoldLetters = ['a','b','c','d','e','f','g','h'];
   for (const seg of segs) {
     if (seg.type === 'flat') {
       // Буква в середине
       const midX = stripX + x + (seg.length || 0) * scaleX / 2;
       doc.setFontSize(7);
       doc.setTextColor(30, 25, 23);
-      doc.text(letters[flatIdx] || '?', midX, stripY - 2, { align: 'center' });
+      doc.text(unfoldLetters[unfoldFlatIdx] || '?', midX, stripY - 2, { align: 'center' });
       x += (seg.length || 0) * scaleX;
-      flatIdx++;
+      unfoldFlatIdx++;
     } else {
       const ba = (seg.ba || 0) * scaleX;
       const bendX = stripX + x + ba / 2;
