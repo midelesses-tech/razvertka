@@ -3,7 +3,10 @@
  * Экспорт в PDF через jsPDF (динамическая загрузка с CDN).
  *
  * ВАЖНО: jsPDF со стандартными шрифтами НЕ поддерживает кириллицу.
- * Все текстовые подписи — на английском. Данные (числа) выводятся корректно.
+ * Все текстовые подписи — на английском.
+ *
+ * Unfold PDF: сечение профиля (схема) + плоская развёртка + данные.
+ * Nesting PDF: лист с деталями (правильные координаты из результата).
  */
 
 const JSPDF_CDN = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js';
@@ -28,39 +31,44 @@ function loadJsPDF() {
 
 /**
  * Экспорт развёртки в PDF.
+ * @param {object} data — результат расчёта (segments, totalLength, thickness, profile, flats, ba, bd, bendCount)
+ * @param {string} filename
  */
 export async function exportUnfoldPDF(data, filename = 'unfold.pdf') {
   const JsPDF = await loadJsPDF();
-  const doc = new JsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
+  const doc = new JsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
+  const margin = 14;
 
-  // Header (English — jsPDF doesn't support Cyrillic)
+  // === Заголовок ===
+  const profileNames = { L: 'Angle (L)', U: 'Channel (U)', G: 'G-profile', C: 'C-profile', custom: 'Custom' };
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
-  doc.text('Flat Pattern / Unfold', 14, 16);
+  doc.text('Flat Pattern — ' + (profileNames[data.profile] || data.profile || ''), margin, 16);
+
+  // === Данные ===
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(11);
+  doc.setFontSize(10);
+  let yText = 26;
+  doc.text(`Thickness S: ${data.thickness ?? '—'} mm`, margin, yText); yText += 6;
+  doc.text(`Total length L: ${(data.totalLength ?? 0).toFixed(2)} mm`, margin, yText); yText += 6;
+  doc.text(`Bends: ${data.bendCount ?? 0}`, margin, yText); yText += 6;
+  doc.text(`Arc length (BA): ${(data.ba ?? 0).toFixed(3)} mm`, margin, yText); yText += 6;
 
-  const profileNames = { L: 'Angle (L)', U: 'Channel (U)', G: 'G-profile', C: 'C-profile', custom: 'Custom' };
-  doc.text(`Profile: ${profileNames[data.profile] || data.profile || '—'}`, 14, 24);
-  doc.text(`Thickness S: ${data.thickness ?? '—'} mm`, 14, 30);
-  doc.text(`Total length L: ${(data.totalLength ?? 0).toFixed(2)} mm`, 14, 36);
-  if (data.ba != null) doc.text(`BA: ${data.ba.toFixed(3)} mm`, 14, 42);
-  if (data.bd != null) doc.text(`BD: ${data.bd.toFixed(3)} mm`, 14, 48);
-  doc.text(`Bends: ${data.bendCount ?? 0}`, 14, 54);
-
-  // Flats
+  // Длины прямых участков
   const f = data.flats || {};
-  const flatsText = [];
-  if (f.La) flatsText.push(`La=${f.La.toFixed(1)}`);
-  if (f.Lb) flatsText.push(`Lb=${f.Lb.toFixed(1)}`);
-  if (f.Lc) flatsText.push(`Lc=${f.Lc.toFixed(1)}`);
-  if (f.Ld) flatsText.push(`Ld=${f.Ld.toFixed(1)}`);
-  if (f.Le) flatsText.push(`Le=${f.Le.toFixed(1)}`);
-  if (flatsText.length) doc.text(`Flats: ${flatsText.join('  ')} mm`, 14, 60);
+  const flatsArr = [];
+  if (f.La) flatsArr.push(`La=${f.La.toFixed(1)}`);
+  if (f.Lb) flatsArr.push(`Lb=${f.Lb.toFixed(1)}`);
+  if (f.Lc) flatsArr.push(`Lc=${f.Lc.toFixed(1)}`);
+  if (f.Ld) flatsArr.push(`Ld=${f.Ld.toFixed(1)}`);
+  if (f.Le) flatsArr.push(`Le=${f.Le.toFixed(1)}`);
+  if (flatsArr.length) {
+    doc.text(`Flats: ${flatsArr.join('  ')} mm`, margin, yText); yText += 6;
+  }
 
-  // Bend center distances
+  // Длины до центров гибов
   const bendDists = [];
   let cum = 0;
   for (const seg of data.segments || []) {
@@ -68,72 +76,127 @@ export async function exportUnfoldPDF(data, filename = 'unfold.pdf') {
     else if (seg.type === 'bend') { bendDists.push(cum + (seg.ba || 0) / 2); cum += seg.ba || 0; }
   }
   if (bendDists.length) {
-    doc.text(`Bend centers: ${bendDists.map((d, i) => `L${i + 1}=${d.toFixed(1)}`).join('  ')} mm`, 14, 66);
+    doc.text(`Bend centers: ${bendDists.map((d, i) => `L${i+1}=${d.toFixed(1)}`).join('  ')} mm`, margin, yText); yText += 6;
   }
 
-  // Drawing
-  const L = data.totalLength || 0;
-  const S = data.thickness || 2;
-  const margin = 14;
-  const maxW = pageW - margin * 2;
-  const topY = 80;
-  const scaleX = Math.min(1, maxW / Math.max(1, L));
-  const drawW = Math.max(20, L * scaleX);
-  const drawH = Math.max(3, Math.min(15, S * 5));
-  const leftX = margin + (maxW - drawW) / 2;
+  // === Сечение профиля (схематично) ===
+  yText += 4;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text('Profile Section', margin, yText); yText += 6;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
 
-  // Outline
+  // Рисуем сечение схематично: L-профиль как пример
+  const secTopY = yText;
+  const secW = 60;
+  const secH = 50;
+  const secX = margin;
+  const S = data.thickness || 2;
+
+  // Простая схема: рисуем полки как линии
+  doc.setDrawColor(217, 119, 6);
+  doc.setLineWidth(0.5);
+  // Для разных профилей — разная схема, но рисуем упрощённо
+  // Используем segments для построения
+  const segs = data.segments || [];
+  let drawX = secX;
+  let drawY = secTopY + 5;
+  let dir = 0; // 0=right, 90=down, 180=left, 270=up
+
+  // Масштаб сечения
+  const maxLen = Math.max(...segs.filter(s => s.type === 'flat').map(s => s.length || 0), 10);
+  const secScale = Math.min(secW, secH) / (maxLen * 2);
+
+  for (const seg of segs) {
+    if (seg.type === 'flat') {
+      const len = (seg.length || 0) * secScale;
+      const rad = dir * Math.PI / 180;
+      const nx = drawX + len * Math.cos(rad);
+      const ny = drawY + len * Math.sin(rad);
+      doc.line(drawX, drawY, nx, ny);
+      drawX = nx;
+      drawY = ny;
+    } else if (seg.type === 'bend') {
+      const sign = seg.sign ?? -1;
+      dir = dir + sign * (seg.angle || 90);
+      if (dir < 0) dir += 360;
+      if (dir >= 360) dir -= 360;
+    }
+  }
+
+  yText = secTopY + secH + 5;
+
+  // === Плоская развёртка ===
+  yText += 4;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text('Flat Pattern', margin, yText); yText += 8;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+
+  const L = data.totalLength || 0;
+  const maxDrawW = pageW - margin * 2;
+  const scaleX = Math.min(1, maxDrawW / Math.max(1, L));
+  const drawW = Math.max(20, L * scaleX);
+  const drawH = Math.max(3, Math.min(12, (data.thickness || 2) * 5));
+  const stripY = yText;
+  const stripX = margin + (maxDrawW - drawW) / 2;
+
+  // Контур развёртки
   doc.setDrawColor(217, 119, 6);
   doc.setFillColor(254, 243, 199);
   doc.setLineWidth(0.4);
-  doc.rect(leftX, topY, drawW, drawH, 'FD');
+  doc.rect(stripX, stripY, drawW, drawH, 'FD');
 
-  // Centerline (dash-dot)
+  // Штрихпунктирная средняя линия
   doc.setDrawColor(120, 113, 108);
   doc.setLineWidth(0.2);
   doc.setLineDashPattern([4, 1.5, 0.5, 1.5], 0);
-  doc.line(leftX, topY + drawH / 2, leftX + drawW, topY + drawH / 2);
+  doc.line(stripX, stripY + drawH / 2, stripX + drawW, stripY + drawH / 2);
   doc.setLineDashPattern([], 0);
 
-  // Bend lines + labels
+  // Линии гибов
   doc.setDrawColor(217, 119, 6);
   doc.setLineWidth(0.3);
   let x = 0;
-  for (const seg of data.segments || []) {
+  for (const seg of segs) {
     if (seg.type === 'flat') {
       x += (seg.length || 0) * scaleX;
     } else {
       const ba = (seg.ba || 0) * scaleX;
-      const bendX = leftX + x + ba / 2;
+      const bendX = stripX + x + ba / 2;
       doc.setLineDashPattern([2, 1.5], 0);
-      doc.line(bendX, topY - 3, bendX, topY + drawH + 3);
+      doc.line(bendX, stripY - 3, bendX, stripY + drawH + 3);
       doc.setLineDashPattern([], 0);
-      doc.setFontSize(8);
-      doc.text(`${seg.angle || 90}°`, bendX, topY - 4, { align: 'center' });
+      doc.setFontSize(7);
+      doc.text(`${seg.angle || 90}°`, bendX, stripY - 4, { align: 'center' });
       x += ba;
     }
   }
 
-  // Dimension line
-  const dimY = topY + drawH + 10;
+  // Размерная линия L
+  const dimY = stripY + drawH + 10;
   doc.setLineWidth(0.2);
   doc.setDrawColor(120, 113, 108);
-  doc.line(leftX, dimY, leftX + drawW, dimY);
-  doc.line(leftX, dimY - 2, leftX, dimY + 2);
-  doc.line(leftX + drawW, dimY - 2, leftX + drawW, dimY + 2);
+  doc.line(stripX, dimY, stripX + drawW, dimY);
+  doc.line(stripX, dimY - 2, stripX, dimY + 2);
+  doc.line(stripX + drawW, dimY - 2, stripX + drawW, dimY + 2);
   doc.setFontSize(9);
-  doc.text(`L = ${L.toFixed(2)} mm`, leftX + drawW / 2, dimY - 2, { align: 'center' });
+  doc.text(`L = ${L.toFixed(2)} mm`, stripX + drawW / 2, dimY - 2, { align: 'center' });
 
-  // Footer
-  doc.setFontSize(8);
+  // === Подвал ===
+  doc.setFontSize(7);
   doc.setTextColor(120, 113, 108);
-  doc.text('Generated by razvertka.ru — K-factor by R/S table', 14, pageH - 8);
+  doc.text('Generated by razvertka.ru — K-factor by R/S table', margin, pageH - 8);
 
   doc.save(filename);
 }
 
 /**
  * Экспорт раскроя в PDF.
+ * @param {object} result — результат optimizeNesting
+ * @param {string} filename
  */
 export async function exportNestingPDF(result, filename = 'nesting.pdf') {
   const JsPDF = await loadJsPDF();
@@ -143,59 +206,86 @@ export async function exportNestingPDF(result, filename = 'nesting.pdf') {
   const margin = 14;
 
   const sheets = (result && Array.isArray(result.sheets)) ? result.sheets : [];
+
   for (let si = 0; si < sheets.length; si++) {
     if (si > 0) doc.addPage();
     const sheet = sheets[si];
 
-    // Header
+    // Заголовок
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(16);
-    doc.text(`Nesting — Sheet ${si + 1}`, margin, 16);
+    doc.setFontSize(14);
+    doc.text(`Nesting — Sheet ${si + 1} / ${sheets.length}`, margin, 14);
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(11);
-    doc.text(`Sheet size: ${sheet.width} x ${sheet.height} mm`, margin, 24);
-    doc.text(`Utilization: ${((sheet.utilization || 0) * 100).toFixed(1)}%`, margin, 30);
-    doc.text(`Parts: ${sheet.placed.length}`, margin, 36);
+    doc.setFontSize(10);
+    doc.text(`Sheet: ${sheet.width} x ${sheet.height} mm`, margin, 20);
+    const util = typeof sheet.utilization === 'number' ? sheet.utilization : (sheet.utilization || 0);
+    doc.text(`Utilization: ${(util * 100).toFixed(1)}%`, margin, 26);
+    doc.text(`Parts placed: ${sheet.placed.length}`, margin, 32);
 
-    // Drawing
-    const availW = pageW - margin * 2;
-    const availH = pageH - 70;
-    const scale = Math.min(availW / sheet.width, availH / sheet.height);
-    const topY = 46;
-    const leftX = margin + (availW - sheet.width * scale) / 2;
+    // Область рисования
+    const drawAreaY = 40;
+    const drawAreaH = pageH - drawAreaY - 16;
+    const drawAreaW = pageW - margin * 2;
 
-    // Sheet outline
+    // Масштаб: вписываем лист в область
+    const scaleX = drawAreaW / sheet.width;
+    const scaleY = drawAreaH / sheet.height;
+    const scale = Math.min(scaleX, scaleY);
+
+    const sheetDrawW = sheet.width * scale;
+    const sheetDrawH = sheet.height * scale;
+    const sheetX = margin + (drawAreaW - sheetDrawW) / 2;
+    const sheetY = drawAreaY + (drawAreaH - sheetDrawH) / 2;
+
+    // Лист (контур)
     doc.setDrawColor(0, 0, 0);
     doc.setLineWidth(0.4);
-    doc.rect(leftX, topY, sheet.width * scale, sheet.height * scale);
+    doc.setFillColor(247, 246, 244);
+    doc.rect(sheetX, sheetY, sheetDrawW, sheetDrawH, 'FD');
 
-    // Sheet dimensions
+    // Размеры листа
     doc.setFontSize(8);
     doc.setTextColor(217, 119, 6);
-    doc.text(`${sheet.width} mm`, leftX + (sheet.width * scale) / 2, topY + sheet.height * scale + 5, { align: 'center' });
-    doc.text(`${sheet.height} mm`, leftX - 5, topY + (sheet.height * scale) / 2, { align: 'center', angle: 90 });
+    doc.text(`${sheet.width} mm`, sheetX + sheetDrawW / 2, sheetY + sheetDrawH + 4, { align: 'center' });
+    doc.text(`${sheet.height} mm`, sheetX - 4, sheetY + sheetDrawH / 2, { align: 'center', angle: 90 });
+    doc.setTextColor(0, 0, 0);
 
-    // Parts
+    // Детали — используем правильные координаты из placed
     doc.setDrawColor(217, 119, 6);
     doc.setFillColor(254, 243, 199);
     doc.setLineWidth(0.3);
-    doc.setTextColor(0, 0, 0);
+
     for (let i = 0; i < sheet.placed.length; i++) {
       const p = sheet.placed[i];
-      const pw = p.rotated ? p.h : p.w;
-      const ph = p.rotated ? p.w : p.h;
-      const px = leftX + p.x * scale;
-      const py = topY + (sheet.height - p.y - ph) * scale;
-      doc.rect(px, py, pw * scale, ph * scale, 'FD');
-      const fs = Math.max(5, Math.min(12, Math.min(pw, ph) * scale * 0.4));
+
+      // Координаты детали: p.x, p.y — левый-нижний угол в системе листа (Y снизу)
+      // В PDF Y сверху → инвертируем
+      const pxW = (p.w || 0) * scale;
+      const pxH = (p.h || 0) * scale;
+      // p.x — от левого края, p.y — от нижнего края
+      // PDF: x = sheetX + p.x * scale
+      //      y = sheetY + sheetDrawH - (p.y + p.h) * scale  (инвертируем Y)
+      const px = sheetX + (p.x || 0) * scale;
+      const py = sheetY + sheetDrawH - ((p.y || 0) + (p.h || 0)) * scale;
+
+      doc.rect(px, py, pxW, pxH, 'FD');
+
+      // Номер детали
+      const fs = Math.max(5, Math.min(10, Math.min(pxW, pxH) * 0.35));
       doc.setFontSize(fs);
-      doc.text(String(i + 1), px + (pw * scale) / 2, py + (ph * scale) / 2, { align: 'center' });
+      doc.text(String(i + 1), px + pxW / 2, py + pxH / 2, { align: 'center' });
+
+      // Размер детали
+      if (pxW > 15 && pxH > 8) {
+        doc.setFontSize(Math.max(5, fs * 0.7));
+        doc.text(`${Math.round(p.w)}x${Math.round(p.h)}`, px + pxW / 2, py + pxH / 2 + fs + 1, { align: 'center' });
+      }
     }
 
-    // Footer
+    // Подвал
+    doc.setFontSize(7);
     doc.setTextColor(120, 113, 108);
-    doc.setFontSize(8);
-    doc.text('Generated by razvertka.ru', 14, pageH - 8);
+    doc.text('Generated by razvertka.ru', margin, pageH - 6);
   }
 
   doc.save(filename);
