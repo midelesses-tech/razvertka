@@ -115,9 +115,9 @@ export function buildStandardProfile(kind, dims) {
       };
     }
     case 'G': {
-      // G: A→, B↑, C←, D↓ (в SVG с sign=+1: A вправо, B вверх, C влево, D вниз)
+      // G: A→, B↑, C←, D↓ — повернуто на 180° чтобы A была сверху
       return {
-        startDir: 0,
+        startDir: 180,
         segments: [
           flat(A - sb, 'Полка A (La)', 'flange-a'),
           bend('Гиб 1', 1),
