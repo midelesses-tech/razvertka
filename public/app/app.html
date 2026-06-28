@@ -6,9 +6,9 @@
   <title>Развёртка и раскрой — приложение</title>
   <meta name="description" content="Онлайн-инструмент: расчёт развёртки профилей с автоматическим K-фактором по таблице R/S, оптимизация раскроя листа алгоритмом MaxRects, металлокалькулятор. Экспорт в DXF, SVG, PDF." />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d97706' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 3h7v7H3z'/%3E%3Cpath d='M14 3h7v7h-7z'/%3E%3Cpath d='M3 14h7v7H3z'/%3E%3Cpath d='M14 14h7v7h-7z'/%3E%3C/svg%3E" />
-  <link rel="stylesheet" href="css/main.css?v=16" />
-  <link rel="stylesheet" href="css/layout.css?v=16" />
-  <link rel="stylesheet" href="css/canvas.css?v=16" />
+  <link rel="stylesheet" href="css/main.css?v=17" />
+  <link rel="stylesheet" href="css/layout.css?v=17" />
+  <link rel="stylesheet" href="css/canvas.css?v=17" />
   <script>
     // FOUC fix: применить тему до первой отрисовки (дефолт — dark, как на лендинге)
     (function () {
@@ -170,11 +170,11 @@
             <div class="subhead">Лист</div>
             <div class="field-row">
               <div class="field-group">
-                <label class="field-label" for="ns-sheet-len">Длина, мм</label>
+                <label class="field-label" for="ns-sheet-len">Ширина, мм</label>
                 <input class="input" id="ns-sheet-len" type="number" min="1" value="2000" data-input="sheet-length" />
               </div>
               <div class="field-group">
-                <label class="field-label" for="ns-sheet-wid">Ширина, мм</label>
+                <label class="field-label" for="ns-sheet-wid">Длина, мм</label>
                 <input class="input" id="ns-sheet-wid" type="number" min="1" value="1000" data-input="sheet-width" />
               </div>
             </div>
@@ -473,7 +473,7 @@
         <button class="auth-tab is-active" role="tab" data-action="switch-auth-tab" data-tab="login" aria-selected="true">Вход</button>
         <button class="auth-tab" role="tab" data-action="switch-auth-tab" data-tab="register" aria-selected="false">Регистрация</button>
       </div>
-      <div class="auth-form" data-tab="login">
+      <div class="auth-form" data-tab="login register">
         <div class="field-group">
           <label class="field-label" for="auth-email">Email (.ru)</label>
           <input class="input" id="auth-email" type="email" placeholder="user@example.ru" autocomplete="email" />
@@ -482,11 +482,15 @@
           <label class="field-label" for="auth-password">Пароль</label>
           <input class="input" id="auth-password" type="password" autocomplete="current-password" />
         </div>
+        <div class="field-group is-hidden" id="auth-password2-group">
+          <label class="field-label" for="auth-password2">Повторите пароль</label>
+          <input class="input" id="auth-password2" type="password" autocomplete="new-password" />
+        </div>
         <div class="auth-form__error" id="auth-error"></div>
         <button class="btn btn--primary btn--block" type="button" data-action="auth-submit">
           <span id="auth-submit-label">Войти</span>
         </button>
-        <button class="btn btn--ghost btn--block" type="button" data-action="open-reset" style="margin-top:8px;">Забыли пароль?</button>
+        <button class="btn btn--ghost btn--block" type="button" data-action="open-reset" style="margin-top:8px;" id="forgot-btn">Забыли пароль?</button>
       </div>
     </div>
   </div>

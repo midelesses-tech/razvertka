@@ -100,7 +100,7 @@ const PROFILE_DEFAULTS = {
   L: { flangeA: 50, flangeB: 50 },
   U: { flangeA: 40, flangeB: 40, flangeC: 40 },
   G: { flangeA: 10, flangeB: 40, flangeC: 90, flangeD: 10 },
-  C: { flangeA: 10, flangeB: 40, flangeC: 90, flangeD: 40, flangeE: 10 },
+  C: { flangeA: 10, flangeB: 100, flangeC: 40, flangeD: 100, flangeE: 10 },
 };
 
 // ───────────────────────── металлокалькулятор ─────────────────────────
@@ -357,6 +357,11 @@ export class App {
       const r = this._handleInput(el, true);
       // при смене типа профиля — перерисовать поля полок / конструктор
       if (el.dataset.input === 'profile-type') {
+        // Применяем дефолтные значения для выбранного профиля
+        const defaults = PROFILE_DEFAULTS[r.value];
+        if (defaults) {
+          Object.assign(this.unfoldParams, defaults);
+        }
         this._renderFlangeFields(r.value);
         this._toggleCustomEditor(r.value);
       }
@@ -565,16 +570,17 @@ export class App {
       case 'C':
         // C: A← (влево), B↓ (вниз), C→ (вправо), D↑ (вверх), E← (влево) — буква С
         return `<svg viewBox="0 0 180 120" class="profile-schema">
-          <path d="M165 20 L25 20 L25 100 L165 100 L165 70" ${pathAttrs}/>
+          <path d="M165 20 L25 20 L25 100 L165 100 L165 40 L110 40" ${pathAttrs}/>
           ${dot(25, 20)}
           ${dot(25, 100)}
           ${dot(165, 100)}
-          ${dot(165, 70)}
+          ${dot(165, 40)}
+          ${dot(110, 40)}
           ${lbl(95, 12, 'B', 0)}
           ${lbl(15, 60, 'A', -90)}
           ${lbl(95, 112, 'C', 0)}
-          ${lbl(175, 85, 'D', 90)}
-          ${lbl(155, 50, 'E', -90)}
+          ${lbl(175, 70, 'D', 90)}
+          ${lbl(137, 32, 'E', 0)}
         </svg>`;
       default:
         return '';
@@ -1356,9 +1362,13 @@ export class App {
       t.classList.toggle('is-active', active);
       t.setAttribute('aria-selected', String(active));
     });
-    document.querySelectorAll('.auth-form').forEach((f) => {
-      f.classList.toggle('is-hidden', f.dataset.tab !== tab);
-    });
+    // Форма всегда видна (data-tab="login register"), не скрываем
+    // Показываем "повторите пароль" только при регистрации
+    const pass2Group = document.getElementById('auth-password2-group');
+    if (pass2Group) pass2Group.classList.toggle('is-hidden', tab !== 'register');
+    // Скрываем "Забыли пароль?" при регистрации
+    const forgotBtn = document.getElementById('forgot-btn');
+    if (forgotBtn) forgotBtn.style.display = tab === 'login' ? '' : 'none';
     const title = document.getElementById('auth-modal-title');
     if (title) title.textContent = tab === 'login' ? 'Вход' : 'Регистрация';
     const submit = document.getElementById('auth-submit-label');
@@ -1368,6 +1378,7 @@ export class App {
   _handleAuthSubmit() {
     const emailEl = document.getElementById('auth-email');
     const passEl = document.getElementById('auth-password');
+    const pass2El = document.getElementById('auth-password2');
     const errEl = document.querySelector('#auth-modal .auth-form__error');
     const email = emailEl?.value?.trim() || '';
     const password = passEl?.value || '';
@@ -1380,6 +1391,18 @@ export class App {
     if (!/\.ru$/i.test(email)) {
       if (errEl) errEl.textContent = 'Допускаются только email-адреса в домене .ru';
       return;
+    }
+    // При регистрации — проверяем повтор пароля
+    if (this._authTab === 'register') {
+      const password2 = pass2El?.value || '';
+      if (password !== password2) {
+        if (errEl) errEl.textContent = 'Пароли не совпадают';
+        return;
+      }
+      if (password.length < 6) {
+        if (errEl) errEl.textContent = 'Пароль должен быть не короче 6 символов';
+        return;
+      }
     }
 
     if (this._authTab === 'login') {

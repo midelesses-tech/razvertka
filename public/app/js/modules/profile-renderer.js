@@ -58,9 +58,9 @@ export function initProfileRenderer(container) {
           y: pos.y + (pxLen / 2) * Math.sin(rad),
         };
         // Смещение буквы перпендикулярно, на ВНЕШНЮЮ сторону
-        // Внешняя сторона = перпендикуляр ВЛЕВО от направления движения (dir - 90)
-        // т.к. профиль загибается «вверх» (sign=-1), внешняя сторона слева
-        const perpRad = toRad(dir - 90);
+        // Профиль загибается sign=-1 (против часовой в SVG = «вверх»),
+        // внешняя сторона = перпендикуляр ВПРАВО от направления (dir + 90)
+        const perpRad = toRad(dir + 90);
         const labelPos = {
           x: mid.x + LABEL_OFFSET * Math.cos(perpRad),
           y: mid.y + LABEL_OFFSET * Math.sin(perpRad),
