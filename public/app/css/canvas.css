@@ -93,8 +93,14 @@
 /* ---------- Раскрой листа ---------- */
 .sheet-svg .sheet-rect {
   fill: var(--surface-2);
-  stroke: var(--border-strong);
-  stroke-width: 2;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+.sheet-svg .sheet-dim {
+  fill: var(--accent);
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  font-weight: 700;
 }
 .sheet-svg .sheet-grid {
   stroke: var(--grid-line-strong);

@@ -100,6 +100,10 @@ export function initSheetRenderer(container) {
     // фон листа
     const sheetRect = `<rect x="${sx(0)}" y="${sy(sheet.height)}" width="${sw(sheet.width)}" height="${sh(sheet.height)}" class="sheet-rect" />`;
 
+    // размеры листа — длина снизу, ширина слева
+    const sheetWLabel = `<text x="${(sx(0) + sx(sheet.width)) / 2}" y="${sy(0) + 18}" class="sheet-dim" text-anchor="middle">↔ ${Math.round(sheet.width)} мм</text>`;
+    const sheetHLabel = `<text x="${sx(0) - 8}" y="${(sy(sheet.height) + sy(0)) / 2}" class="sheet-dim" text-anchor="middle" transform="rotate(-90 ${sx(0) - 8} ${(sy(sheet.height) + sy(0)) / 2})">↕ ${Math.round(sheet.height)} мм</text>`;
+
     // сетка — лёгкие линии каждые 100 мм
     let grid = '';
     const step = 100;
@@ -168,6 +172,8 @@ export function initSheetRenderer(container) {
   ${waste}
   ${parts}
   ${labels}
+  ${sheetWLabel}
+  ${sheetHLabel}
 </svg>`.trim();
 
     container.innerHTML = `
