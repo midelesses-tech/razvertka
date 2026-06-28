@@ -268,7 +268,7 @@ export default function Home() {
             "@context": "https://schema.org",
             "@type": "WebApplication",
             name: "Развёртка и Раскрой металлопроката",
-            url: "https://razvertka.ru/",
+            url: "https://металлораскрой.рф/",
             description: "Онлайн-инструмент: расчёт развёртки профилей по нейтральной оси с K-фактором, оптимизация раскроя листа, металлокалькулятор веса. Экспорт в DXF, SVG, PDF.",
             applicationCategory: "EngineeringApplication",
             operatingSystem: "Web",

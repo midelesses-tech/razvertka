@@ -1,4 +1,4 @@
-# robots.txt — razvertka.ru
+# robots.txt — металлораскрой.рф
 
 User-agent: Googlebot
 Allow: /
@@ -14,4 +14,4 @@ Disallow: /api/auth/
 Disallow: /api/premium/
 Disallow: /api/projects/
 
-Sitemap: https://razvertka.ru/sitemap.xml
+Sitemap: https://металлораскрой.рф/sitemap.xml

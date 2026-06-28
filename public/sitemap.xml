@@ -2,12 +2,12 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
-    <loc>https://razvertka.ru/</loc>
+    <loc>https://металлораскрой.рф/</loc>
     <lastmod>2025-01-01</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
     <image:image>
-      <image:loc>https://razvertka.ru/logo.svg</image:loc>
+      <image:loc>https://металлораскрой.рф/logo.svg</image:loc>
       <image:title>Онлайн Раскрой и Развёртка металлопроката</image:title>
       <image:caption>Калькулятор развёртки и веса металлопроката</image:caption>
     </image:image>

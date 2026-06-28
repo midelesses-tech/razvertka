@@ -25,17 +25,17 @@ export const metadata: Metadata = {
     "вычет на гиб",
     "экспорт DXF лазерная резка",
   ],
-  authors: [{ name: "razvertka.ru" }],
+  authors: [{ name: "металлораскрой.рф" }],
   alternates: {
-    canonical: "https://razvertka.ru/",
+    canonical: "https://металлораскрой.рф/",
   },
   openGraph: {
     title:
       "Онлайн Раскрой и Развёртка металлопроката — калькулятор для инженеров",
     description:
       "Расчёт развёртки и веса металлопроката: уголок, швеллер, L/U/Z-профиль, труба, двутавр, лист. Экспорт SVG/DXF. K-фактор по таблице R/S.",
-    url: "https://razvertka.ru/",
-    siteName: "razvertka.ru",
+    url: "https://металлораскрой.рф/",
+    siteName: "металлораскрой.рф",
     locale: "ru_RU",
     type: "website",
   },
