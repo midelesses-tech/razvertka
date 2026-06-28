@@ -35,8 +35,31 @@
   border-radius: 16px;
 }
 .landing-header .brand { gap: 12px; }
-.landing-header .brand__title { font-size: 15px; }
-.landing-header .brand__subtitle { font-size: 11px; }
+.landing-header .brand__mark {
+  width: 38px; height: 38px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent), #f97316);
+  color: #fff;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.landing-header .brand__text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  line-height: 1.2;
+}
+.landing-header .brand__title {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -.01em;
+  color: var(--text);
+}
+.landing-header .brand__subtitle {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  letter-spacing: .02em;
+}
 .landing-header__nav {
   display: inline-flex;
   align-items: center;
