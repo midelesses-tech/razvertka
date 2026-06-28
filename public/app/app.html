@@ -6,9 +6,9 @@
   <title>Развёртка и раскрой — приложение</title>
   <meta name="description" content="Онлайн-инструмент: расчёт развёртки профилей с автоматическим K-фактором по таблице R/S, оптимизация раскроя листа алгоритмом MaxRects, металлокалькулятор. Экспорт в DXF, SVG, PDF." />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d97706' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 3h7v7H3z'/%3E%3Cpath d='M14 3h7v7h-7z'/%3E%3Cpath d='M3 14h7v7H3z'/%3E%3Cpath d='M14 14h7v7h-7z'/%3E%3C/svg%3E" />
-  <link rel="stylesheet" href="css/main.css?v=14" />
-  <link rel="stylesheet" href="css/layout.css?v=14" />
-  <link rel="stylesheet" href="css/canvas.css?v=14" />
+  <link rel="stylesheet" href="css/main.css?v=15" />
+  <link rel="stylesheet" href="css/layout.css?v=15" />
+  <link rel="stylesheet" href="css/canvas.css?v=15" />
   <script>
     // FOUC fix: применить тему до первой отрисовки (дефолт — dark, как на лендинге)
     (function () {
@@ -110,7 +110,6 @@
                   <option value="U">Швеллер (U)</option>
                   <option value="G">G-профиль</option>
                   <option value="C">C-профиль</option>
-                  <option value="clamp">Хомут (замкнутый) PRO</option>
                   <option value="custom">Произвольный…</option>
                 </select>
               </div>
@@ -182,16 +181,7 @@
             <div class="field-row">
               <div class="field-group">
                 <label class="field-label" for="ns-sheets-max">Листов (max)</label>
-                <div class="select-wrap">
-                  <select class="select" id="ns-sheets-max" data-input="max-sheets">
-                    <option value="1">1 (бесплатно)</option>
-                    <option value="5">5</option>
-                    <option value="10">10</option>
-                    <option value="20">20</option>
-                    <option value="50">50</option>
-                    <option value="100">100 (PRO)</option>
-                  </select>
-                </div>
+                <input class="input" id="ns-sheets-max" type="number" min="1" max="100" value="1" data-input="max-sheets" />
                 <p class="field-hint" id="ns-sheets-hint">1 лист — бесплатно. Больше — премиум.</p>
               </div>
             </div>
@@ -364,14 +354,19 @@
               <button class="chip" data-tool="toggle-labels" title="Метки деталей">№ Метки</button>
             </div>
           </div>
-          <div class="view__stage">
-            <div class="stage stage--full" style="flex-direction:column; gap:8px; min-height:0; overflow:hidden;">
-              <div class="nest-warn is-hidden" id="nest-warn" role="alert"></div>
+          <div class="view__stage" style="flex-direction:column; gap:8px;">
+            <div class="nest-warn is-hidden" id="nest-warn" role="alert"></div>
+            <div class="stage" style="flex:0 0 60%; min-height:0; overflow:hidden;">
               <div class="stage__label">Лист</div>
-              <div class="stage__canvas" id="stage-sheet" style="flex:1 1 auto; min-height:200px; overflow:auto;">
+              <div class="stage__canvas" id="stage-sheet" style="min-height:0; overflow:auto;">
                 <div class="placeholder"><span>Раскладка появится здесь</span></div>
               </div>
-              <table class="nesting-table" id="nesting-table" aria-label="Координаты деталей"></table>
+            </div>
+            <div class="stage" style="flex:1 1 auto; min-height:0; overflow:hidden; max-height:40%;">
+              <div class="stage__label">Координаты деталей</div>
+              <div style="overflow:auto; flex:1; min-height:0;">
+                <table class="nesting-table" id="nesting-table" aria-label="Координаты деталей"></table>
+              </div>
             </div>
           </div>
           <div class="view__readout" id="nesting-readout">

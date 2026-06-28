@@ -31,6 +31,7 @@ import {
 } from './modules/export-dxf.js';
 import { exportUnfoldPDF, exportNestingPDF } from './modules/export-pdf.js';
 import { initDevPanel, applyGating, showPremiumModal } from './modules/dev-panel.js';
+import { isPremium, setPremium, FEATURES } from './modules/feature-flags.js';
 import { numOrDefault, validateUnfoldParams, markInvalid, clearInvalid } from './utils/validators.js';
 import {
   initAuth, login, register, logout, getUser, verifyEmail, resendCode,
@@ -86,16 +87,6 @@ const FLANGE_CONFIG = {
     ],
     schema: 'C',
   },
-  clamp: {
-    label: 'Размеры хомута, мм',
-    hint: 'Замкнутый хомут: A, B, C. Сплющенный овал.',
-    fields: [
-      { param: 'flangeA', label: 'Ширина A', placeholder: 'A' },
-      { param: 'flangeB', label: 'Высота B', placeholder: 'B' },
-      { param: 'flangeC', label: 'Длина C', placeholder: 'C' },
-    ],
-    schema: 'U',
-  },
   custom: {
     label: 'Произвольный профиль',
     hint: 'Конструктор: добавляйте сегменты с длиной и углом гиба.',
@@ -110,7 +101,6 @@ const PROFILE_DEFAULTS = {
   U: { flangeA: 40, flangeB: 40, flangeC: 40 },
   G: { flangeA: 10, flangeB: 40, flangeC: 90, flangeD: 10 },
   C: { flangeA: 10, flangeB: 40, flangeC: 90, flangeD: 40, flangeE: 10 },
-  clamp: { flangeA: 100, flangeB: 100, flangeC: 120 },
 };
 
 // ───────────────────────── металлокалькулятор ─────────────────────────
@@ -418,9 +408,9 @@ export class App {
       // max-sheets — гейтинг: бесплатно только 1
       const max = Number(value) || 1;
       if (max > 1 && !isPremium()) {
-        // Бесплатно — только 1 лист, блокируем выбор большего
-        const sel = document.querySelector('[data-input="max-sheets"]');
-        if (sel) sel.value = '1';
+        // Бесплатно — только 1 лист, сбрасываем
+        const inp = document.querySelector('[data-input="max-sheets"]');
+        if (inp) inp.value = '1';
         this.nestingOpts.maxSheets = 1;
         showPremiumModal('nestingSheets');
         const hint = document.getElementById('ns-sheets-hint');
@@ -463,6 +453,12 @@ export class App {
 
   _initCustomEditor() {
     document.getElementById('custom-add-segment')?.addEventListener('click', () => {
+      // Лимит 3 сегмента для бесплатной версии
+      const maxSegs = isPremium() ? 50 : 3;
+      if (this.customSegments.length >= maxSegs) {
+        showPremiumModal('customProfile');
+        return;
+      }
       this.customSegments.push({ length: 20, angle: 0 });
       this._renderCustomEditor();
     });
@@ -817,37 +813,6 @@ export class App {
           segments: calc.segments,
           startDir: 0,
           profile: 'custom',
-          flats: calc.flats,
-          li: calc.li,
-          setback: calc.setback,
-          thickness: p.thickness,
-        },
-      };
-    } else if (kind === 'clamp') {
-      // хомут — упрощённо: длина = 2A + 2B + C
-      const A = p.flangeA || 0, B = p.flangeB || 0, C = p.flangeC || 0;
-      const segs = [
-        { type: 'flat', length: A, label: 'Полка A', tag: 'flange-a' },
-        { type: 'bend', angle: 90, radius: p.radius, label: 'Гиб 1' },
-        { type: 'flat', length: B, label: 'Полка B', tag: 'flange-b' },
-        { type: 'bend', angle: 90, radius: p.radius, label: 'Гиб 2' },
-        { type: 'flat', length: C, label: 'Стенка C', tag: 'web' },
-        { type: 'bend', angle: 90, radius: p.radius, label: 'Гиб 3' },
-        { type: 'flat', length: B, label: 'Полка B2', tag: 'flange-b' },
-        { type: 'bend', angle: 90, radius: p.radius, label: 'Гиб 4' },
-        { type: 'flat', length: A, label: 'Полка A2', tag: 'flange-a' },
-      ];
-      const calc = calculateUnfold(segs, { thickness: p.thickness, radius: p.radius });
-      const firstBend = calc.bends[0] || {};
-      result = {
-        ok: true,
-        value: {
-          ba: firstBend.ba ?? 0,
-          bd: firstBend.bd ?? 0,
-          totalLength: calc.totalLength,
-          bendCount: calc.bendCount,
-          segments: calc.segments,
-          profile: 'clamp',
           flats: calc.flats,
           li: calc.li,
           setback: calc.setback,

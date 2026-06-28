@@ -184,8 +184,8 @@ export function initSheetRenderer(container) {
   }
 
   function _computeViewport(mmW, mmH) {
-    // ограничиваем размеры SVG viewport — не более ~1400×900
-    const maxW = 1400, maxH = 900;
+    // Горизонтальная ориентация — лист всегда в landscape
+    const maxW = 1600, maxH = 700;
     const aspect = mmW / mmH;
     let vw = maxW, vh = maxW / aspect;
     if (vh > maxH) { vh = maxH; vw = maxH * aspect; }
