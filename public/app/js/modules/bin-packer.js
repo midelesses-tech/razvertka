@@ -107,10 +107,12 @@ export class BinPacker {
 
     if (candidates.length === 0) return null;
 
-    // Выбираем: минимальный Y, потом минимальный X
+    // Выбираем лучшую позицию: минимальный Y → минимальный X → лучшее прилегание
     candidates.sort((a, b) => {
       if (Math.abs(a.y - b.y) > EPS) return a.y - b.y;
-      return a.x - b.x;
+      if (Math.abs(a.x - b.x) > EPS) return a.x - b.x;
+      // При равных X,Y — предпочитаем позицию где меньше пустоты справа
+      return a.waste - b.waste;
     });
 
     const best = candidates[0];
@@ -136,48 +138,113 @@ export class BinPacker {
   _findBL(fw, fh) {
     let bestX = -1;
     let bestY = Infinity;
-    let bestSeg = -1;
+    let bestWaste = Infinity;
 
     for (let i = 0; i < this._skyline.length; i++) {
       const seg = this._skyline[i];
-      // Не помещается по ширине в этот сегмент
-      if (seg.w < fw - EPS) continue;
 
-      // Y = высота этого сегмента
-      const y = seg.y;
-
-      // Проверяем, не вылезает ли деталь по высоте листа
-      if (y + fh > this.margin + this._eh + EPS) continue;
-
-      // Проверяем, что на протяжении fw высота skyline не больше y + fh
-      // (иначе деталь налезет на уже размещённые)
-      let fits = true;
-      let remainingW = fw;
-      let j = i;
-      while (remainingW > EPS && j < this._skyline.length) {
-        const s = this._skyline[j];
-        if (s.y > y + EPS) {
-          // Этот сегмент выше — деталь не помещается
-          fits = false;
-          break;
+      // Позиция 1: левый край сегмента
+      this._tryPosition(i, seg.x, fw, fh, (y, waste) => {
+        if (y < bestY - EPS || (Math.abs(y - bestY) < EPS && waste < bestWaste - EPS)) {
+          bestY = y; bestX = seg.x; bestWaste = waste;
         }
-        remainingW -= s.w;
-        j++;
-      }
-      if (remainingW > EPS) fits = false; // не хватило ширины
+      });
 
-      if (!fits) continue;
-
-      // Кандидат
-      if (y < bestY - EPS) {
-        bestY = y;
-        bestX = seg.x;
-        bestSeg = i;
+      // Позиция 2: правый край сегмента (деталь прижата вправо)
+      const rightX = seg.x + seg.w - fw;
+      if (rightX > seg.x + EPS) {
+        this._tryPositionAt(rightX, fw, fh, (y, waste) => {
+          if (y < bestY - EPS || (Math.abs(y - bestY) < EPS && waste < bestWaste - EPS)) {
+            bestY = y; bestX = rightX; bestWaste = waste;
+          }
+        });
       }
     }
 
     if (bestX < 0) return null;
-    return { x: bestX, y: bestY, seg: bestSeg };
+    return { x: bestX, y: bestY, waste: bestWaste };
+  }
+
+  /** Проверить позицию на левом краю сегмента i. */
+  _tryPosition(segIdx, x, fw, fh, callback) {
+    const seg = this._skyline[segIdx];
+    const y = seg.y;
+    if (y + fh > this.margin + this._eh + EPS) return;
+
+    let fits = true;
+    let remainingW = fw;
+    let j = segIdx;
+    while (remainingW > EPS && j < this._skyline.length) {
+      const s = this._skyline[j];
+      if (s.y > y + EPS) { fits = false; break; }
+      remainingW -= s.w;
+      j++;
+    }
+    if (remainingW > EPS) fits = false;
+    if (!fits) return;
+
+    // Считаем waste
+    let waste = 0;
+    remainingW = fw;
+    j = segIdx;
+    while (remainingW > EPS && j < this._skyline.length) {
+      const s = this._skyline[j];
+      waste += (y - s.y) * Math.min(s.w, remainingW);
+      remainingW -= s.w;
+      j++;
+    }
+    callback(y, waste);
+  }
+
+  /** Проверить позицию в произвольной X координате. */
+  _tryPositionAt(x, fw, fh, callback) {
+    // Находим сегмент, содержащий x
+    let segIdx = -1;
+    for (let i = 0; i < this._skyline.length; i++) {
+      const s = this._skyline[i];
+      if (x >= s.x - EPS && x < s.x + s.w - EPS) { segIdx = i; break; }
+    }
+    if (segIdx < 0) return;
+
+    // Находим максимальную высоту skyline на протяжении [x, x+fw]
+    let maxY = 0;
+    let remainingW = fw;
+    let j = segIdx;
+    let startX = x;
+    while (remainingW > EPS && j < this._skyline.length) {
+      const s = this._skyline[j];
+      const segStart = Math.max(s.x, startX);
+      const segEnd = Math.min(s.x + s.w, startX + fw);
+      const overlap = segEnd - segStart;
+      if (overlap > EPS) {
+        maxY = Math.max(maxY, s.y);
+        remainingW -= overlap;
+      }
+      j++;
+    }
+    if (remainingW > EPS) return; // не хватило ширины
+
+    const y = maxY;
+    if (y + fh > this.margin + this._eh + EPS) return;
+
+    // Waste = разница между y и нижележащими сегментами
+    let waste = 0;
+    remainingW = fw;
+    j = segIdx;
+    let curX = x;
+    while (remainingW > EPS && j < this._skyline.length) {
+      const s = this._skyline[j];
+      const segStart = Math.max(s.x, curX);
+      const segEnd = Math.min(s.x + s.w, curX + fw);
+      const overlap = segEnd - segStart;
+      if (overlap > EPS) {
+        waste += (y - s.y) * overlap;
+        remainingW -= overlap;
+      }
+      j++;
+    }
+
+    callback(y, waste);
   }
 
   /**

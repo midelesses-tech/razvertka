@@ -86,7 +86,7 @@ export function buildStandardProfile(kind, dims) {
     type: 'flat', length: Math.max(0, length), label, tag,
   });
   const bend = (label, n) => ({
-    type: 'bend', angle, radius: R, label, index: n, sign: 1,
+    type: 'bend', angle, radius: R, label, index: n, sign: -1,
   });
 
   switch (k) {
