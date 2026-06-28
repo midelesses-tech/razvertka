@@ -1156,17 +1156,24 @@ export class App {
 
     eventBus.on('export:availability', ({ formats }) => {
       bar.querySelectorAll('[data-export]').forEach((b) => {
-        if (b.classList.contains('is-locked-wrap')) return;
+        // Сначала снимаем disabled для всех, у кого есть формат
         if (formats.includes(b.dataset.export)) {
           b.disabled = false;
         }
       });
+      // Применяем гейтинг (добавит is-locked-wrap для PDF без премиума)
       applyGating();
-      // PDF: убираем disabled, оставляем is-locked-wrap — клик откроет модалку
-      bar.querySelectorAll('[data-export="pdf"]').forEach((b) => {
-        if (b.classList.contains('is-locked-wrap')) {
-          b.disabled = false;
-        }
+      // Для заблокированных — убираем disabled (клик откроет модалку)
+      bar.querySelectorAll('[data-export].is-locked-wrap').forEach((b) => {
+        b.disabled = false;
+      });
+    });
+
+    // При смене премиум-статуса — обновляем гейтинг
+    eventBus.on('flags:change', () => {
+      applyGating();
+      bar.querySelectorAll('[data-export].is-locked-wrap').forEach((b) => {
+        b.disabled = false;
       });
     });
   }

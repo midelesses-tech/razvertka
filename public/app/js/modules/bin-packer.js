@@ -186,7 +186,7 @@ export class BinPacker {
     let bestLong = Infinity;
 
     for (const r of this._free) {
-      // Пробуем нормальную ориентацию
+      // Сначала пробуем нормальную ориентацию
       if (r.w >= fw - EPS && r.h >= fh - EPS) {
         const leftoverW = r.w - fw;
         const leftoverH = r.h - fh;
@@ -197,8 +197,9 @@ export class BinPacker {
           bestLong = long;
           best = { rect: r, rotated: false };
         }
+        continue; // нормальная влезла — поворот не нужен
       }
-      // Пробуем повёрнутую ориентацию (даже если нормальная влезает — поворот может быть лучше)
+      // Не влезает нормально — пробуем поворот
       if (allowRotation && r.w >= fh - EPS && r.h >= fw - EPS) {
         const leftoverW = r.w - fh;
         const leftoverH = r.h - fw;
