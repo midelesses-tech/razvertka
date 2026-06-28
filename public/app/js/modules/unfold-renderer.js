@@ -1,37 +1,23 @@
 /**
  * unfold-renderer.js
- * SVG-рендер плоской развёртки — простая полоса с разделителями гибов.
+ * SVG-рендер плоской развёртки.
  *
- * Сверху — длины сегментов (La, Lb, Lc, Ld, Le, Li).
- * Снизу — буквенные метки сегментов (a, b, c, d, e, ...).
- * Гибы (BA) показаны как тонкие разделители с зазором BA_PX.
+ * Концепция:
+ *   - Горизонтальная полоса металла с разделителями гибов.
+ *   - Штрихпунктирная линия по центру (средняя линия / нейтральная ось).
+ *   - Сверху: буквенные метки сегментов (a, b, c, d, e) по центру.
+ *   - Снизу: размеры от начала до ЦЕНТРА каждого гиба
+ *     (прямой участок + половина BA).
+ *   - Адаптивный шрифт: размер уменьшается если сегментов много.
  */
 
-const BA_PX = 6; // ширина «полосы» гиба в пикселях
-const PADDING_X = 28;
-const PADDING_Y = 28;
-const STRIP_HEIGHT = 28; // высота полосы металла в px
+const BA_PX = 8;
+const PADDING_X = 30;
+const PADDING_Y = 30;
+const STRIP_HEIGHT = 24;
+const MIN_SEG_PX = 20;
+const MAX_SEG_PX = 160;
 
-/**
- * @typedef {Object} Segment
- * @property {'flat'|'bend'} type
- * @property {number} [length]   для flat, мм
- * @property {number} [angle]    для bend, градусы
- * @property {number} [ba]       bend allowance, мм
- * @property {number} [radius]
- * @property {string} [label]
- * @property {string} [tag]
- */
-
-/**
- * Инициализировать рендерер развёртки.
- * @param {HTMLElement} container
- * @returns {{
- *   render: (segments: Segment[], totalLength: number) => {svg:string},
- *   clear: () => void,
- *   getSVG: () => SVGSVGElement|null,
- * }}
- */
 export function initUnfoldRenderer(container) {
   if (!container) return { render() { return { svg: '' }; }, clear() {}, getSVG() { return null; } };
 
@@ -39,30 +25,29 @@ export function initUnfoldRenderer(container) {
   function getSVG() { return container.querySelector('svg.unfold-svg'); }
 
   /**
-   * Отрисовать развёртку.
-   * @param {Segment[]} segments
-   * @param {number} totalLength  полная длина, мм (для масштаба)
+   * @param {Array} segments
+   * @param {number} totalLength
    */
   function render(segments, totalLength) {
-    // 1. Раскладываем сегменты в «полосовые» части: flat = полоса длиной schematicLen(length),
-    //    bend = разделитель шириной BA_PX.
+    // Раскладываем сегменты в полосовые части.
     const parts = [];
     let xPx = 0;
-    let idx = 0;
+    let flatIdx = 0;
+    const totalFlat = segments.filter((s) => s.type === 'flat').reduce((a, s) => a + Math.max(0, s.length || 0), 0);
+
     for (const seg of segments) {
       if (seg.type === 'flat') {
         const realLen = Math.max(0, seg.length || 0);
-        const wPx = schematicLen(realLen, totalLength);
+        const wPx = schematicLen(realLen, totalFlat, segments.filter((s) => s.type === 'flat').length);
         parts.push({
           kind: 'flat',
           x: xPx, w: wPx,
           realLen,
-          label: segLabelChar(seg.tag, idx),
+          label: segLabelChar(seg.tag, flatIdx),
         });
         xPx += wPx;
-        idx++;
+        flatIdx++;
       } else {
-        // bend — разделитель
         const realBA = seg.ba ?? 0;
         parts.push({
           kind: 'bend',
@@ -76,50 +61,82 @@ export function initUnfoldRenderer(container) {
 
     const totalPx = Math.max(200, xPx);
     const w = totalPx + PADDING_X * 2;
-    const h = STRIP_HEIGHT + PADDING_Y * 2 + 40; // +40 для подписей сверху/снизу
-    const stripY = (h - STRIP_HEIGHT) / 2;
+    const h = STRIP_HEIGHT + PADDING_Y * 2 + 50;
+    const stripY = PADDING_Y + 20;
+    const stripH = STRIP_HEIGHT;
 
-    // 2. Строим SVG
+    // Адаптивный шрифт
+    const numFlats = parts.filter((p) => p.kind === 'flat').length;
+    const fontSize = numFlats > 5 ? 9 : numFlats > 3 ? 10 : 11;
+
+    // Строим SVG элементы
     let strips = '';
+    let centerline = '';
     let bendLines = '';
     let topLabels = '';
-    let bottomLabels = '';
+    let bottomDims = '';
 
+    // 1. Полосы металла (прямые участки)
     for (const p of parts) {
       const px = p.x + PADDING_X;
       if (p.kind === 'flat') {
-        strips += `<rect x="${px.toFixed(2)}" y="${stripY}" width="${p.w.toFixed(2)}" height="${STRIP_HEIGHT}" class="unfold-fill" />`;
-        // длина сверху
+        strips += `<rect x="${px.toFixed(2)}" y="${stripY}" width="${p.w.toFixed(2)}" height="${stripH}" class="unfold-fill" />`;
+        // Буква сверху по центру
         const midX = px + p.w / 2;
-        topLabels += `<text x="${midX.toFixed(2)}" y="${(stripY - 8).toFixed(2)}" class="dim-text" text-anchor="middle">${fmtLen(p.realLen)}</text>`;
-        // буква снизу
-        bottomLabels += `<text x="${midX.toFixed(2)}" y="${(stripY + STRIP_HEIGHT + 16).toFixed(2)}" class="seg-letter" text-anchor="middle">${escapeXml(p.label || '')}</text>`;
-      } else {
-        // bend — пунктирная линия сгиба
-        const midX = px + p.w / 2;
-        bendLines += `<line x1="${midX.toFixed(2)}" y1="${(stripY - 6).toFixed(2)}" x2="${midX.toFixed(2)}" y2="${(stripY + STRIP_HEIGHT + 6).toFixed(2)}" class="bend-line" />`;
-        topLabels += `<text x="${midX.toFixed(2)}" y="${(stripY - 8).toFixed(2)}" class="bend-label" text-anchor="middle">${escapeXml(String(p.angle))}°</text>`;
+        topLabels += `<text x="${midX.toFixed(2)}" y="${(stripY - 10).toFixed(2)}" class="seg-letter" text-anchor="middle" style="font-size:${fontSize}px;font-weight:700">${escapeXml(p.label || '')}</text>`;
       }
     }
 
-    // Общая размерная линия снизу — полная длина L
-    const dimY = stripY + STRIP_HEIGHT + 28;
+    // 2. Штрихпунктирная средняя линия
+    const clY = stripY + stripH / 2;
+    centerline = `<line x1="${PADDING_X}" y1="${clY}" x2="${(PADDING_X + totalPx).toFixed(2)}" y2="${clY}" class="centerline" />`;
+
+    // 3. Линии гибов (пунктирные вертикальные) + размерные отметки снизу
+    let cumRealLen = 0; // накопленная реальная длина от начала
+    let bendCount = 0;
+
+    for (let i = 0; i < parts.length; i++) {
+      const p = parts[i];
+      const px = p.x + PADDING_X;
+
+      if (p.kind === 'flat') {
+        cumRealLen += p.realLen;
+      } else {
+        // Гиб — пунктирная линия
+        const midX = px + p.w / 2;
+        bendLines += `<line x1="${midX.toFixed(2)}" y1="${(stripY - 4).toFixed(2)}" x2="${midX.toFixed(2)}" y2="${(stripY + stripH + 4).toFixed(2)}" class="bend-line" />`;
+
+        // Размер до ЦЕНТРА гиба = накопленная длина + половина BA
+        const distToCenter = cumRealLen + (p.realLen || 0) / 2;
+        bendCount++;
+        const dimLabel = `L${bendCount}`;
+        const dimY = stripY + stripH + 18;
+        bottomDims += `<text x="${midX.toFixed(2)}" y="${dimY.toFixed(2)}" class="dim-text" text-anchor="middle" style="font-size:${fontSize}px">${fmtLen(distToCenter)}</text>`;
+        bottomDims += `<text x="${midX.toFixed(2)}" y="${(dimY + 12).toFixed(2)}" class="dim-label" text-anchor="middle" style="font-size:${Math.max(8, fontSize - 1)}px;fill:var(--text-faint)">${dimLabel}</text>`;
+
+        cumRealLen += p.realLen || 0;
+      }
+    }
+
+    // 4. Общая размерная линия снизу — полная длина L
+    const dimY2 = stripY + stripH + 40;
     const dimLeft = PADDING_X;
     const dimRight = PADDING_X + totalPx;
-    const dimLine = `
-      <line x1="${dimLeft}" y1="${dimY}" x2="${dimRight}" y2="${dimY}" class="dim-line" />
-      <line x1="${dimLeft}" y1="${dimY - 4}" x2="${dimLeft}" y2="${dimY + 4}" class="dim-line" />
-      <line x1="${dimRight}" y1="${dimY - 4}" x2="${dimRight}" y2="${dimY + 4}" class="dim-line" />
-      <text x="${((dimLeft + dimRight) / 2).toFixed(2)}" y="${(dimY - 5).toFixed(2)}" class="dim-text" text-anchor="middle" style="font-weight:700">L = ${fmtLen(totalLength)}</text>
+    const totalDim = `
+      <line x1="${dimLeft}" y1="${dimY2}" x2="${dimRight}" y2="${dimY2}" class="dim-line" />
+      <line x1="${dimLeft}" y1="${dimY2 - 4}" x2="${dimLeft}" y2="${dimY2 + 4}" class="dim-line" />
+      <line x1="${dimRight}" y1="${dimY2 - 4}" x2="${dimRight}" y2="${dimY2 + 4}" class="dim-line" />
+      <text x="${((dimLeft + dimRight) / 2).toFixed(2)}" y="${(dimY2 - 5).toFixed(2)}" class="dim-text" text-anchor="middle" style="font-weight:700;font-size:${fontSize + 1}px">L = ${fmtLen(totalLength)}</text>
     `;
 
     const svg = `
 <svg class="unfold-svg" viewBox="0 0 ${w.toFixed(0)} ${h.toFixed(0)}" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
   ${strips}
+  ${centerline}
   ${bendLines}
   ${topLabels}
-  ${bottomLabels}
-  ${dimLine}
+  ${bottomDims}
+  ${totalDim}
 </svg>`.trim();
 
     container.innerHTML = svg;
@@ -129,26 +146,17 @@ export function initUnfoldRenderer(container) {
   return { render, clear, getSVG };
 }
 
-// ───────────────────────── helpers ─────────────────────────
-
-/**
- * Схематическая длина прямой полки.
- * Линейно-логарифмическая: короткие масштабируются линейно,
- * длинные сжимаются логарифмически.
- */
-function schematicLen(realLen, totalLength) {
-  if (realLen <= 0) return 0;
-  // если все полки короткие — линейно
-  const minPx = 14;
-  const totalRef = Math.max(50, totalLength || realLen);
-  const t = realLen / totalRef;
-  // base: 60-180 px в зависимости от доли в общей длине
-  const base = 60 + Math.min(180, t * 600);
-  // логарифмическое сжатие очень длинных
+/** Схематическая длина: пропорциональная с логарифмическим сжатием. */
+function schematicLen(realLen, totalFlat, numFlats) {
+  if (realLen <= 0) return MIN_SEG_PX;
+  const ref = Math.max(50, totalFlat || realLen);
+  const t = realLen / ref;
+  const base = MIN_SEG_PX + Math.min(MAX_SEG_PX - MIN_SEG_PX, t * MAX_SEG_PX * 2);
+  // Логарифмическое сжатие для больших
   if (realLen > 200) {
-    return Math.min(220, base * 0.85);
+    return Math.min(MAX_SEG_PX, base * 0.8);
   }
-  return Math.max(minPx, base);
+  return Math.max(MIN_SEG_PX, Math.min(MAX_SEG_PX, base));
 }
 
 function segLabelChar(tag, idx) {
@@ -159,13 +167,13 @@ function segLabelChar(tag, idx) {
   };
   if (tag && tagMap[tag]) return tagMap[tag];
   const letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
-  return letters[idx] || '?';
+  return letters[idx] || '';
 }
 
 function fmtLen(v) {
-  if (v == null) return '—';
+  if (v == null || isNaN(v)) return '—';
   const n = Math.round(v * 100) / 100;
-  return `${n.toFixed(2)} мм`;
+  return `${n.toFixed(1)} мм`;
 }
 
 function escapeXml(s) {

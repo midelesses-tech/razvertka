@@ -783,6 +783,7 @@ export class App {
           totalLength: calc.totalLength,
           bendCount: calc.bendCount,
           segments: calc.segments,
+          startDir: 0,
           profile: 'custom',
           flats: calc.flats,
           li: calc.li,
@@ -835,11 +836,13 @@ export class App {
       if (needsD && (p.flangeD == null || p.flangeD <= 0)) { fail('flange-d', 'Размер D должен быть положительным'); return; }
       if (needsE && (p.flangeE == null || p.flangeE <= 0)) { fail('flange-e', 'Размер E должен быть положительным'); return; }
 
-      const segs = buildStandardProfile(kind, {
+      const built = buildStandardProfile(kind, {
         flangeA: p.flangeA, flangeB: p.flangeB,
         flangeC: p.flangeC, flangeD: p.flangeD, flangeE: p.flangeE,
         angle: p.angle, thickness: p.thickness, radius: p.radius,
       });
+      const segs = built.segments;
+      const startDir = built.startDir;
       const calc = calculateUnfold(segs, { thickness: p.thickness, radius: p.radius });
       const firstBend = calc.bends[0] || {};
       result = {
@@ -850,6 +853,7 @@ export class App {
           totalLength: calc.totalLength,
           bendCount: calc.bendCount,
           segments: calc.segments,
+          startDir: startDir,
           profile: kind,
           flats: calc.flats,
           li: calc.li,
@@ -865,7 +869,7 @@ export class App {
 
     // Отрисовать сечение и развёртку
     if (this._profileRenderer) {
-      this._profileRenderer.render(result.value.segments, result.value.thickness || p.thickness);
+      this._profileRenderer.render(result.value.segments, result.value.thickness || p.thickness, result.value.startDir || 0);
     }
     if (this._unfoldRenderer) {
       this._unfoldRenderer.render(result.value.segments, result.value.totalLength);

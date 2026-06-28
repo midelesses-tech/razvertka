@@ -86,55 +86,65 @@ export function buildStandardProfile(kind, dims) {
     type: 'flat', length: Math.max(0, length), label, tag,
   });
   const bend = (label, n) => ({
-    type: 'bend', angle, radius: R, label, index: n,
+    type: 'bend', angle, radius: R, label, index: n, sign: -1,
   });
 
   switch (k) {
     case 'L': {
-      // [полка A] [гиб] [полка B]
-      return [
-        flat(A - sb, 'Полка A (La)', 'flange-a'),
-        bend('Гиб 1', 1),
-        flat(B - sb, 'Полка B (Lb)', 'flange-b'),
-      ];
+      // L: A→, B↑  (startDir=0, sign=-1)
+      return {
+        startDir: 0,
+        segments: [
+          flat(A - sb, 'Полка A (La)', 'flange-a'),
+          bend('Гиб 1', 1),
+          flat(B - sb, 'Полка B (Lb)', 'flange-b'),
+        ],
+      };
     }
     case 'U': {
-      // [полка A] [гиб] [стенка C] [гиб] [полка B]  — разнополочный П-профиль
-      return [
-        flat(A - sb, 'Полка A (La)', 'flange-a'),
-        bend('Гиб 1', 1),
-        flat(C - 2 * sb, 'Стенка C (Lc)', 'web'),
-        bend('Гиб 2', 2),
-        flat(B - sb, 'Полка B (Lb)', 'flange-b'),
-      ];
+      // U: A↓, B→, C↑  (startDir=90, sign=-1)
+      return {
+        startDir: 90,
+        segments: [
+          flat(A - sb, 'Полка A (La)', 'flange-a'),
+          bend('Гиб 1', 1),
+          flat(C - 2 * sb, 'Стенка C (Lc)', 'web'),
+          bend('Гиб 2', 2),
+          flat(B - sb, 'Полка B (Lb)', 'flange-b'),
+        ],
+      };
     }
     case 'G': {
-      // [полка A] [гиб] [полка B] [гиб] [стенка C] [гиб] [отгиб D]
-      // 4 прямых участка, 3 гиба. A,D — крайние (1 гиб), B,C — промежуточные (2 гиба).
-      return [
-        flat(A - sb, 'Полка A (La)', 'flange-a'),
-        bend('Гиб 1', 1),
-        flat(B - 2 * sb, 'Полка B (Lb)', 'flange-b'),
-        bend('Гиб 2', 2),
-        flat(C - 2 * sb, 'Стенка C (Lc)', 'web'),
-        bend('Гиб 3', 3),
-        flat(D - sb, 'Отгиб D (Ld)', 'flange-d'),
-      ];
+      // G: A→, B↑, C←, D↓  (startDir=0, sign=-1)
+      return {
+        startDir: 0,
+        segments: [
+          flat(A - sb, 'Полка A (La)', 'flange-a'),
+          bend('Гиб 1', 1),
+          flat(B - 2 * sb, 'Полка B (Lb)', 'flange-b'),
+          bend('Гиб 2', 2),
+          flat(C - 2 * sb, 'Стенка C (Lc)', 'web'),
+          bend('Гиб 3', 3),
+          flat(D - sb, 'Отгиб D (Ld)', 'flange-d'),
+        ],
+      };
     }
     case 'C': {
-      // Z-образный профиль: [A] [гиб] [B] [гиб] [C] [гиб] [D] [гиб] [E]
-      // 5 прямых участков, 4 гиба. A и E — крайние, B/C/D — промежуточные.
-      return [
-        flat(A - sb, 'Полка A (La)', 'flange-a'),
-        bend('Гиб 1', 1),
-        flat(B - 2 * sb, 'Полка B (Lb)', 'flange-b'),
-        bend('Гиб 2', 2),
-        flat(C - 2 * sb, 'Стенка C (Lc)', 'web'),
-        bend('Гиб 3', 3),
-        flat(D - 2 * sb, 'Полка D (Ld)', 'flange-d'),
-        bend('Гиб 4', 4),
-        flat(E - sb, 'Полка E (Le)', 'flange-e'),
-      ];
+      // C: A←, B↓, C→, D↑, E←  (startDir=180, sign=-1) — буква С
+      return {
+        startDir: 180,
+        segments: [
+          flat(A - sb, 'Полка A (La)', 'flange-a'),
+          bend('Гиб 1', 1),
+          flat(B - 2 * sb, 'Полка B (Lb)', 'flange-b'),
+          bend('Гиб 2', 2),
+          flat(C - 2 * sb, 'Стенка C (Lc)', 'web'),
+          bend('Гиб 3', 3),
+          flat(D - 2 * sb, 'Полка D (Ld)', 'flange-d'),
+          bend('Гиб 4', 4),
+          flat(E - sb, 'Полка E (Le)', 'flange-e'),
+        ],
+      };
     }
     default:
       throw new Error(`Неизвестный тип профиля: ${kind}`);

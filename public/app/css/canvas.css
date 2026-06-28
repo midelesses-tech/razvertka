@@ -27,33 +27,27 @@
 
 /* ---------- Сечение профиля ---------- */
 .section-svg .profile-fill {
-  fill: var(--accent-soft);
+  fill: none;
   stroke: var(--accent);
-  stroke-width: 1.5;
+  stroke-width: 2;
   stroke-linejoin: round;
+  stroke-linecap: round;
 }
-.section-svg .profile-edge {
-  fill: none;
-  stroke: var(--text);
-  stroke-width: 1.2;
-  stroke-linejoin: round;
-}
-.section-svg .bend-arc {
-  fill: none;
-  stroke: var(--bend-line);
+.section-svg .vertex-dot {
+  fill: var(--accent);
+  stroke: var(--surface);
   stroke-width: 1.5;
-  stroke-dasharray: 4 3;
 }
-.section-svg .neutral-axis {
-  fill: none;
-  stroke: var(--bend-line);
-  stroke-width: 1;
-  stroke-dasharray: 6 3 1 3;
-  opacity: .85;
+.section-svg .seg-letter {
+  fill: var(--text);
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  font-weight: 700;
 }
-.section-svg .center-mark {
-  stroke: var(--dim-line);
-  stroke-width: 1;
+.section-svg .dim-text {
+  fill: var(--text-muted);
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
 }
 
 /* ---------- Развёртка ---------- */
@@ -63,29 +57,38 @@
   stroke-width: 1.5;
   stroke-linejoin: round;
 }
-.unfold-svg .bend-line {
-  stroke: var(--bend-line);
-  stroke-width: 1.6;
-  stroke-dasharray: 8 4;
+.unfold-svg .centerline {
+  fill: none;
+  stroke: var(--bend-line, var(--text-muted));
+  stroke-width: 1;
+  stroke-dasharray: 8 3 1 3;
+  opacity: .8;
 }
-.unfold-svg .bend-line.is-hidden { display: none; }
-.unfold-svg .bend-label {
-  fill: var(--bend-line);
-  font-family: var(--font-mono);
-  font-size: 11px;
+.unfold-svg .bend-line {
+  stroke: var(--bend-line, var(--accent));
+  stroke-width: 1.6;
+  stroke-dasharray: 6 4;
+}
+.unfold-svg .seg-letter {
+  fill: var(--text);
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
   font-weight: 700;
 }
+.unfold-svg .dim-label {
+  fill: var(--text-faint);
+  font-family: var(--font-mono, monospace);
+  font-size: 9px;
+}
 .unfold-svg .dim-line {
-  stroke: var(--dim-line);
+  stroke: var(--dim-line, var(--text-faint));
   stroke-width: .8;
 }
 .unfold-svg .dim-text {
   fill: var(--text-muted);
-  font-family: var(--font-mono);
+  font-family: var(--font-mono, monospace);
   font-size: 11px;
 }
-.unfold-svg .dim-line.is-hidden,
-.unfold-svg .dim-text.is-hidden { display: none; }
 
 /* ---------- Раскрой листа ---------- */
 .sheet-svg .sheet-rect {
