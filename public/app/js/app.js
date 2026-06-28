@@ -188,8 +188,8 @@ export class App {
     // Раскрой
     this.nestingParts = [{ w: 300, h: 500, qty: 8 }];
     this.nestingOpts = {
-      sheetWidth: 1000,
-      sheetHeight: 2000,
+      sheetWidth: 1250,
+      sheetHeight: 2500,
       kerf: 2,
       margin: 10,
       allowRotation: true,

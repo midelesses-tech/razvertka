@@ -86,12 +86,12 @@ export function buildStandardProfile(kind, dims) {
     type: 'flat', length: Math.max(0, length), label, tag,
   });
   const bend = (label, n) => ({
-    type: 'bend', angle, radius: R, label, index: n, sign: -1,
+    type: 'bend', angle, radius: R, label, index: n, sign: 1,
   });
 
   switch (k) {
     case 'L': {
-      // L: A→, B↑  (startDir=0, sign=-1)
+      // L: A→, B↑ (в SVG: A вправо, B вверх = поворот на -90 = sign=+1, dir=-90)
       return {
         startDir: 0,
         segments: [
@@ -102,7 +102,7 @@ export function buildStandardProfile(kind, dims) {
       };
     }
     case 'U': {
-      // U: A↓, B→, C↑  (startDir=90, sign=-1)
+      // U: A↓, B→, C↑ — швеллер ⊂ (в SVG: A вниз, B вправо, C вверх)
       return {
         startDir: 90,
         segments: [
@@ -115,7 +115,7 @@ export function buildStandardProfile(kind, dims) {
       };
     }
     case 'G': {
-      // G: A→, B↑, C←, D↓  (startDir=0, sign=-1)
+      // G: A→, B↑, C←, D↓ (в SVG с sign=+1: A вправо, B вверх, C влево, D вниз)
       return {
         startDir: 0,
         segments: [
@@ -130,7 +130,7 @@ export function buildStandardProfile(kind, dims) {
       };
     }
     case 'C': {
-      // C: A←, B↓, C→, D↑, E←  (startDir=180, sign=-1) — буква С
+      // C: A←, B↓, C→, D↑, E← — буква С
       return {
         startDir: 180,
         segments: [
