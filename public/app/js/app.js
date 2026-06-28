@@ -261,7 +261,7 @@ export class App {
   _initTheme() {
     const saved = localStorage.getItem(THEME_KEY);
     const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
-    this.theme = saved === 'light' || saved === 'dark' ? saved : (prefersDark ? 'dark' : 'light');
+    this.theme = saved === 'light' || saved === 'dark' ? saved : 'dark';
     this._applyTheme();
 
     const toggle = document.getElementById('theme-toggle');
@@ -836,6 +836,19 @@ export class App {
       if (needsD && (p.flangeD == null || p.flangeD <= 0)) { fail('flange-d', 'Размер D должен быть положительным'); return; }
       if (needsE && (p.flangeE == null || p.flangeE <= 0)) { fail('flange-e', 'Размер E должен быть положительным'); return; }
 
+      // Защита от невозможной геометрии: проверяем, что setback < минимальной полки.
+      const sb = (p.radius + p.thickness) * Math.tan((p.angle * Math.PI / 180) / 2);
+      const minFlange = Math.min(p.flangeA, p.flangeB, ...(needsC ? [p.flangeC] : []), ...(needsD ? [p.flangeD] : []), ...(needsE ? [p.flangeE] : []));
+      if (sb >= minFlange) {
+        fail('thickness', `Невозможная геометрия: setback (${sb.toFixed(1)} мм) ≥ минимальной полки (${minFlange} мм). Уменьшите толщину, радиус или угол, либо увеличьте полки.`);
+        return;
+      }
+      // Для промежуточных полок setback вычитается дважды
+      if (needsC && sb * 2 >= p.flangeC) {
+        fail('flange-c', `Невозможная геометрия: 2×setback (${(sb * 2).toFixed(1)} мм) ≥ стенки C (${p.flangeC} мм). Увеличьте C или уменьшите R/S.`);
+        return;
+      }
+
       const built = buildStandardProfile(kind, {
         flangeA: p.flangeA, flangeB: p.flangeB,
         flangeC: p.flangeC, flangeD: p.flangeD, flangeE: p.flangeE,
@@ -877,11 +890,6 @@ export class App {
 
     this.setStatus('Готово', 'ok');
     eventBus.emit(EVENTS.UNFOLD_CALCULATED, result.value);
-    eventBus.emit(EVENTS.TOAST_SHOW, {
-      title: 'Развёртка рассчитана',
-      message: `L = ${result.value.totalLength.toFixed(2)} мм · BA = ${result.value.ba.toFixed(3)} · BD = ${result.value.bd.toFixed(3)}`,
-      kind: 'ok',
-    });
 
     // разрешить экспорт
     eventBus.emit('export:availability', { formats: ['svg', 'dxf'] });
@@ -910,23 +918,61 @@ export class App {
     if (!box) return;
     const f = value.flats || {};
     const row = (label, v) => `<div class="calc-result__row"><span>${this._escapeHtml(label)}</span><span class="mono">${this._escapeHtml(v)}</span></div>`;
+
+    // Расстояния до центров гибов
+    const bendDists = this._calcBendCenterDistances(value);
+
     box.innerHTML = `
       <div class="calc-result__box glass">
-        <div class="calc-result__head">Результат расчёта — профиль ${this._escapeHtml(value.profile || '—')}</div>
-        ${row('La — прямая A', (f.La ?? 0).toFixed(2) + ' мм')}
-        ${row('Lb — прямая B', (f.Lb ?? 0).toFixed(2) + ' мм')}
-        ${row('Lc — прямая C', (f.Lc ?? 0).toFixed(2) + ' мм')}
-        ${row('Ld — прямая D', (f.Ld ?? 0).toFixed(2) + ' мм')}
-        ${row('Le — прямая E', (f.Le ?? 0).toFixed(2) + ' мм')}
-        ${row('Li — дуга гиба', (value.li ?? 0).toFixed(3) + ' мм')}
-        ${row('Σ Li (все дуги)', ((value.li ?? 0) * (value.bendCount ?? 0)).toFixed(3) + ' мм')}
-        ${row('Гибов', String(value.bendCount ?? 0))}
-        ${row('BA (один гиб)', (value.ba ?? 0).toFixed(3) + ' мм')}
-        ${row('BD (один гиб)', (value.bd ?? 0).toFixed(3) + ' мм')}
+        <div class="calc-result__success">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+          Развёртка рассчитана — L = <b>${(value.totalLength ?? 0).toFixed(2)}</b> мм
+        </div>
+        <div class="calc-result__head">Профиль ${this._escapeHtml(value.profile || '—')} · ${value.bendCount ?? 0} гиб(ов)</div>
+        <div class="calc-result__section">
+          <div class="calc-result__section-title">Прямые участки</div>
+          ${row('La — прямая A', (f.La ?? 0).toFixed(2) + ' мм')}
+          ${row('Lb — прямая B', (f.Lb ?? 0).toFixed(2) + ' мм')}
+          ${row('Lc — прямая C', (f.Lc ?? 0).toFixed(2) + ' мм')}
+          ${row('Ld — прямая D', (f.Ld ?? 0).toFixed(2) + ' мм')}
+          ${row('Le — прямая E', (f.Le ?? 0).toFixed(2) + ' мм')}
+        </div>
+        <div class="calc-result__section">
+          <div class="calc-result__section-title">Расстояния до центров гибов</div>
+          ${bendDists.map((d, i) => row(`L${i + 1} — до гиба ${i + 1}`, d.toFixed(2) + ' мм')).join('')}
+        </div>
+        <div class="calc-result__section">
+          <div class="calc-result__section-title">Параметры гиба</div>
+          ${row('Li — длина дуги', (value.li ?? 0).toFixed(3) + ' мм')}
+          ${row('Σ Li — все дуги', ((value.li ?? 0) * (value.bendCount ?? 0)).toFixed(3) + ' мм')}
+          ${row('BA (один гиб)', (value.ba ?? 0).toFixed(3) + ' мм')}
+          ${row('BD (один гиб)', (value.bd ?? 0).toFixed(3) + ' мм')}
+        </div>
         <div class="calc-result__total">Длина L = <b>${(value.totalLength ?? 0).toFixed(2)}</b> мм</div>
+        <div class="calc-result__legend">
+          <b>Легенда:</b> La, Lb, Lc, Ld, Le — длины прямых участков полок;
+          Li — длина дуги гиба (BA); L1, L2… — расстояния от начала развёртки до центра соответствующего гиба.
+        </div>
       </div>
     `;
     box.classList.remove('is-hidden');
+  }
+
+  /** Расчёт расстояний от начала развёртки до центра каждого гиба. */
+  _calcBendCenterDistances(value) {
+    const segs = value.segments || [];
+    const dists = [];
+    let cum = 0;
+    for (const seg of segs) {
+      if (seg.type === 'flat') {
+        cum += seg.length || 0;
+      } else if (seg.type === 'bend') {
+        const ba = seg.ba || 0;
+        dists.push(cum + ba / 2);
+        cum += ba;
+      }
+    }
+    return dists;
   }
 
   // ───────────────────────── Раскрой: детали ─────────────────────────

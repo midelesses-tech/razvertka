@@ -1022,6 +1022,45 @@ input, select, button { font-size: 14px; }
   color: var(--text);
 }
 .calc-result__total b { color: var(--accent); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.calc-result__success {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--ok, #22c55e) 14%, transparent);
+  border: 1px solid var(--ok, #22c55e);
+  color: var(--ok, #22c55e);
+  font-size: 13px;
+  font-weight: 700;
+}
+.calc-result__success b { color: var(--accent); font-family: var(--font-mono); }
+.calc-result__section {
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.calc-result__section:last-of-type { border-bottom: none; }
+.calc-result__section-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--text-faint);
+  margin-bottom: 4px;
+}
+.calc-result__legend {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.calc-result__legend b { color: var(--text); }
 
 /* seg-counter — счётчик сегментов в конструкторе */
 .seg-counter {
@@ -1203,4 +1242,42 @@ input, select, button { font-size: 14px; }
   .acct-btn span:not(.acct-btn__plan) { max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .projects-modal .modal { width: 95%; }
   .project-item { flex-wrap: wrap; }
+}
+
+/* ============================================================
+   КНОПКА PREMIUM В ШАПКЕ
+   ============================================================ */
+.premium-badge-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--accent);
+  background: linear-gradient(135deg, var(--accent-soft), color-mix(in srgb, var(--accent) 12%, var(--surface)));
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  cursor: pointer;
+  transition: all .15s ease;
+  white-space: nowrap;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.premium-badge-btn:hover {
+  background: linear-gradient(135deg, var(--accent), #f97316);
+  color: #fff;
+  border-color: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.premium-badge-btn.is-active {
+  background: linear-gradient(135deg, var(--accent), #f97316);
+  color: #fff;
+}
+@media (max-width: 560px) {
+  .premium-badge-btn span { display: none; }
+  .premium-badge-btn { padding: 0; width: 34px; justify-content: center; }
 }
