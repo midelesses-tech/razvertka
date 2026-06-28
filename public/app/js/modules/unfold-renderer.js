@@ -61,7 +61,7 @@ export function initUnfoldRenderer(container) {
 
     const totalPx = Math.max(200, xPx);
     const w = totalPx + PADDING_X * 2;
-    const h = STRIP_HEIGHT + PADDING_Y * 2 + 50;
+    const h = STRIP_HEIGHT + PADDING_Y * 2 + 65;
     const stripY = PADDING_Y + 20;
     const stripH = STRIP_HEIGHT;
 
@@ -118,8 +118,8 @@ export function initUnfoldRenderer(container) {
       }
     }
 
-    // 4. Общая размерная линия снизу — полная длина L
-    const dimY2 = stripY + stripH + 40;
+    // 4. Общая размерная линия снизу — полная длина L (опущена ниже)
+    const dimY2 = stripY + stripH + 55;
     const dimLeft = PADDING_X;
     const dimRight = PADDING_X + totalPx;
     const totalDim = `

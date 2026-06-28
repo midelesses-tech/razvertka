@@ -57,7 +57,7 @@ export const PROFILE_FIELDS: Record<ProfileType, { key: string; label: string }[
   channel: [{ key: "h", label: "Высота H, мм" }, { key: "b", label: "Полка B, мм" }, { key: "s", label: "Стенка S, мм" }],
   ibeam: [{ key: "h", label: "Высота H, мм" }, { key: "b", label: "Полка B, мм" }, { key: "s", label: "Стенка S, мм" }],
   flat: [{ key: "b", label: "Ширина B, мм" }, { key: "s", label: "Толщина S, мм" }],
-  sheet: [{ key: "s", label: "Толщина S, мм" }],
+  sheet: [{ key: "s", label: "Толщина S, мм" }, { key: "b", label: "Ширина B, мм" }],
   hex: [{ key: "d", label: "Диаметр впис. D, мм" }],
   strip: [{ key: "b", label: "Ширина B, мм" }, { key: "s", label: "Толщина S, мм" }],
 };
@@ -102,8 +102,8 @@ export function crossSectionArea(type: ProfileType, dims: Dimensions): number {
       return 2 * B * S + (H - 2 * S) * S;
     }
     case "sheet":
-      // Лист: площадь 1 м ширины = s × 1000 мм²
-      return (s ?? 0) * 1000;
+      // Лист: площадь сечения = s × b (толщина × ширина)
+      return (s ?? 0) * (b ?? 1000);
     case "hex":
       // Шестигранник (вписанная окружность d): (√3/2)·d²
       return (Math.sqrt(3) / 2) * (d ?? 0) ** 2;

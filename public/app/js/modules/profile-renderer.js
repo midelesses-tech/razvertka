@@ -75,15 +75,18 @@ export function initProfileRenderer(container) {
       }
     }
 
-    // Bounding box
+    // Bounding box — центрируем профиль в окне
     const xs = pts.map((p) => p.x);
     const ys = pts.map((p) => p.y);
     const minX = Math.min(...xs), maxX = Math.max(...xs);
     const minY = Math.min(...ys), maxY = Math.max(...ys);
-    const w = Math.max(200, maxX - minX + PADDING_X * 2);
-    const h = Math.max(160, maxY - minY + PADDING_Y * 2);
-    const offX = PADDING_X - minX;
-    const offY = PADDING_Y - minY;
+    const profileW = maxX - minX;
+    const profileH = maxY - minY;
+    const w = Math.max(200, profileW + PADDING_X * 2);
+    const h = Math.max(160, profileH + PADDING_Y * 2);
+    // Центрируем: смещение = (ширина окна - ширина профиля) / 2 - minX
+    const offX = (w - profileW) / 2 - minX;
+    const offY = (h - profileH) / 2 - minY;
 
     // Path: M + L для каждой точки
     let d = '';
