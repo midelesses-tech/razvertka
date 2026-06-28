@@ -291,7 +291,6 @@
 /* ---------- Адаптив ---------- */
 @media (max-width: 1024px) {
   :root { --sidebar-w: 280px; }
-  .stage-split { grid-template-columns: 1fr; grid-auto-rows: 1fr; }
 }
 
 @media (max-width: 768px) {
