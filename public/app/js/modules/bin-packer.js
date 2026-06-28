@@ -186,30 +186,29 @@ export class BinPacker {
     let bestLong = Infinity;
 
     for (const r of this._free) {
-      // не влезает по габаритам — пропускаем
-      if (r.w < fw - EPS || r.h < fh - EPS) {
-        // пробуем поворот
-        if (allowRotation && r.w >= fh - EPS && r.h >= fw - EPS) {
-          const leftoverW = r.w - fh;
-          const leftoverH = r.h - fw;
-          const short = Math.min(leftoverW, leftoverH);
-          const long = Math.max(leftoverW, leftoverH);
-          if (short < bestShort - EPS || (Math.abs(short - bestShort) < EPS && long < bestLong - EPS)) {
-            bestShort = short;
-            bestLong = long;
-            best = { rect: r, rotated: true };
-          }
+      // Пробуем нормальную ориентацию
+      if (r.w >= fw - EPS && r.h >= fh - EPS) {
+        const leftoverW = r.w - fw;
+        const leftoverH = r.h - fh;
+        const short = Math.min(leftoverW, leftoverH);
+        const long = Math.max(leftoverW, leftoverH);
+        if (short < bestShort - EPS || (Math.abs(short - bestShort) < EPS && long < bestLong - EPS)) {
+          bestShort = short;
+          bestLong = long;
+          best = { rect: r, rotated: false };
         }
-        continue;
       }
-      const leftoverW = r.w - fw;
-      const leftoverH = r.h - fh;
-      const short = Math.min(leftoverW, leftoverH);
-      const long = Math.max(leftoverW, leftoverH);
-      if (short < bestShort - EPS || (Math.abs(short - bestShort) < EPS && long < bestLong - EPS)) {
-        bestShort = short;
-        bestLong = long;
-        best = { rect: r, rotated: false };
+      // Пробуем повёрнутую ориентацию (даже если нормальная влезает — поворот может быть лучше)
+      if (allowRotation && r.w >= fh - EPS && r.h >= fw - EPS) {
+        const leftoverW = r.w - fh;
+        const leftoverH = r.h - fw;
+        const short = Math.min(leftoverW, leftoverH);
+        const long = Math.max(leftoverW, leftoverH);
+        if (short < bestShort - EPS || (Math.abs(short - bestShort) < EPS && long < bestLong - EPS)) {
+          bestShort = short;
+          bestLong = long;
+          best = { rect: r, rotated: true };
+        }
       }
     }
     return best;

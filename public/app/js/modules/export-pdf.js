@@ -2,15 +2,14 @@
  * export-pdf.js
  * Экспорт в PDF через jsPDF (динамическая загрузка с CDN).
  *
- * Две функции: exportUnfoldPDF (развёртка), exportNestingPDF (раскрой).
- * Формат A4 landscape, единицы — мм.
+ * ВАЖНО: jsPDF со стандартными шрифтами НЕ поддерживает кириллицу.
+ * Все текстовые подписи — на английском. Данные (числа) выводятся корректно.
  */
 
 const JSPDF_CDN = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js';
 
 let _jspdfPromise = null;
 
-/** Динамически загрузить jsPDF (один раз). */
 function loadJsPDF() {
   if (window.jspdf && window.jspdf.jsPDF) return Promise.resolve(window.jspdf.jsPDF);
   if (_jspdfPromise) return _jspdfPromise;
@@ -19,9 +18,9 @@ function loadJsPDF() {
     script.src = JSPDF_CDN;
     script.onload = () => {
       if (window.jspdf && window.jspdf.jsPDF) resolve(window.jspdf.jsPDF);
-      else reject(new Error('jsPDF не загрузился'));
+      else reject(new Error('jsPDF not loaded'));
     };
-    script.onerror = () => reject(new Error('Не удалось загрузить jsPDF с CDN'));
+    script.onerror = () => reject(new Error('jsPDF CDN failed'));
     document.head.appendChild(script);
   });
   return _jspdfPromise;
@@ -29,15 +28,6 @@ function loadJsPDF() {
 
 /**
  * Экспорт развёртки в PDF.
- * @param {{
- *   segments: Array,
- *   totalLength: number,
- *   thickness: number,
- *   profile: string,
- *   kfactor?: number,
- *   ba?: number, bd?: number,
- * }} data
- * @param {string} filename
  */
 export async function exportUnfoldPDF(data, filename = 'unfold.pdf') {
   const JsPDF = await loadJsPDF();
@@ -45,36 +35,67 @@ export async function exportUnfoldPDF(data, filename = 'unfold.pdf') {
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
 
-  // заголовок
+  // Header (English — jsPDF doesn't support Cyrillic)
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
-  doc.text('Развёртка профиля', 14, 16);
+  doc.text('Flat Pattern / Unfold', 14, 16);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(11);
-  doc.text(`Профиль: ${data.profile || '—'}`, 14, 24);
-  doc.text(`Толщина S: ${data.thickness ?? '—'} мм`, 14, 30);
-  doc.text(`Полная длина L: ${(data.totalLength ?? 0).toFixed(2)} мм`, 14, 36);
-  if (data.ba != null) doc.text(`BA: ${data.ba.toFixed(3)} мм`, 14, 42);
-  if (data.bd != null) doc.text(`BD: ${data.bd.toFixed(3)} мм`, 14, 48);
 
-  // схема развёртки — длинный прямоугольник
+  const profileNames = { L: 'Angle (L)', U: 'Channel (U)', G: 'G-profile', C: 'C-profile', custom: 'Custom' };
+  doc.text(`Profile: ${profileNames[data.profile] || data.profile || '—'}`, 14, 24);
+  doc.text(`Thickness S: ${data.thickness ?? '—'} mm`, 14, 30);
+  doc.text(`Total length L: ${(data.totalLength ?? 0).toFixed(2)} mm`, 14, 36);
+  if (data.ba != null) doc.text(`BA: ${data.ba.toFixed(3)} mm`, 14, 42);
+  if (data.bd != null) doc.text(`BD: ${data.bd.toFixed(3)} mm`, 14, 48);
+  doc.text(`Bends: ${data.bendCount ?? 0}`, 14, 54);
+
+  // Flats
+  const f = data.flats || {};
+  const flatsText = [];
+  if (f.La) flatsText.push(`La=${f.La.toFixed(1)}`);
+  if (f.Lb) flatsText.push(`Lb=${f.Lb.toFixed(1)}`);
+  if (f.Lc) flatsText.push(`Lc=${f.Lc.toFixed(1)}`);
+  if (f.Ld) flatsText.push(`Ld=${f.Ld.toFixed(1)}`);
+  if (f.Le) flatsText.push(`Le=${f.Le.toFixed(1)}`);
+  if (flatsText.length) doc.text(`Flats: ${flatsText.join('  ')} mm`, 14, 60);
+
+  // Bend center distances
+  const bendDists = [];
+  let cum = 0;
+  for (const seg of data.segments || []) {
+    if (seg.type === 'flat') cum += seg.length || 0;
+    else if (seg.type === 'bend') { bendDists.push(cum + (seg.ba || 0) / 2); cum += seg.ba || 0; }
+  }
+  if (bendDists.length) {
+    doc.text(`Bend centers: ${bendDists.map((d, i) => `L${i + 1}=${d.toFixed(1)}`).join('  ')} mm`, 14, 66);
+  }
+
+  // Drawing
   const L = data.totalLength || 0;
   const S = data.thickness || 2;
   const margin = 14;
   const maxW = pageW - margin * 2;
-  const maxH = pageH - 80;
+  const topY = 80;
   const scaleX = Math.min(1, maxW / Math.max(1, L));
   const drawW = Math.max(20, L * scaleX);
-  const drawH = Math.max(2, Math.min(maxH, S * 4)); // толщину «утолщаем» для видимости
-  const topY = 70;
-  const leftX = margin;
+  const drawH = Math.max(3, Math.min(15, S * 5));
+  const leftX = margin + (maxW - drawW) / 2;
 
-  // контур развёртки
+  // Outline
   doc.setDrawColor(217, 119, 6);
+  doc.setFillColor(254, 243, 199);
   doc.setLineWidth(0.4);
-  doc.rect(leftX, topY, drawW, drawH);
+  doc.rect(leftX, topY, drawW, drawH, 'FD');
 
-  // линии сгиба
+  // Centerline (dash-dot)
+  doc.setDrawColor(120, 113, 108);
+  doc.setLineWidth(0.2);
+  doc.setLineDashPattern([4, 1.5, 0.5, 1.5], 0);
+  doc.line(leftX, topY + drawH / 2, leftX + drawW, topY + drawH / 2);
+  doc.setLineDashPattern([], 0);
+
+  // Bend lines + labels
   doc.setDrawColor(217, 119, 6);
   doc.setLineWidth(0.3);
   let x = 0;
@@ -85,37 +106,34 @@ export async function exportUnfoldPDF(data, filename = 'unfold.pdf') {
       const ba = (seg.ba || 0) * scaleX;
       const bendX = leftX + x + ba / 2;
       doc.setLineDashPattern([2, 1.5], 0);
-      doc.line(bendX, topY - 2, bendX, topY + drawH + 2);
+      doc.line(bendX, topY - 3, bendX, topY + drawH + 3);
       doc.setLineDashPattern([], 0);
-      // метка угла
       doc.setFontSize(8);
       doc.text(`${seg.angle || 90}°`, bendX, topY - 4, { align: 'center' });
       x += ba;
     }
   }
 
-  // размерная линия снизу
-  const dimY = topY + drawH + 12;
+  // Dimension line
+  const dimY = topY + drawH + 10;
   doc.setLineWidth(0.2);
-  doc.setDrawColor(120, 120, 120);
+  doc.setDrawColor(120, 113, 108);
   doc.line(leftX, dimY, leftX + drawW, dimY);
   doc.line(leftX, dimY - 2, leftX, dimY + 2);
   doc.line(leftX + drawW, dimY - 2, leftX + drawW, dimY + 2);
   doc.setFontSize(9);
-  doc.text(`L = ${L.toFixed(2)} мм`, leftX + drawW / 2, dimY - 2, { align: 'center' });
+  doc.text(`L = ${L.toFixed(2)} mm`, leftX + drawW / 2, dimY - 2, { align: 'center' });
 
-  // сноска
+  // Footer
   doc.setFontSize(8);
-  doc.setTextColor(120, 120, 120);
-  doc.text('K-фактор определяется автоматически по таблице R/S', 14, pageH - 10);
+  doc.setTextColor(120, 113, 108);
+  doc.text('Generated by razvertka.ru — K-factor by R/S table', 14, pageH - 8);
 
   doc.save(filename);
 }
 
 /**
  * Экспорт раскроя в PDF.
- * @param {{sheets: Array<{index,width,height,placed:Array<{x,y,w,h,rotated}>,utilization:number}>}} result
- * @param {string} filename
  */
 export async function exportNestingPDF(result, filename = 'nesting.pdf') {
   const JsPDF = await loadJsPDF();
@@ -128,45 +146,56 @@ export async function exportNestingPDF(result, filename = 'nesting.pdf') {
   for (let si = 0; si < sheets.length; si++) {
     if (si > 0) doc.addPage();
     const sheet = sheets[si];
+
+    // Header
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(16);
-    doc.text(`Раскрой — Лист ${sheet.index}`, margin, 16);
+    doc.text(`Nesting — Sheet ${si + 1}`, margin, 16);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(11);
-    doc.text(`Размер листа: ${sheet.width} × ${sheet.height} мм`, margin, 24);
-    doc.text(`Использование: ${sheet.utilization.toFixed(1)}%`, margin, 30);
-    doc.text(`Деталей: ${sheet.placed.length}`, margin, 36);
+    doc.text(`Sheet size: ${sheet.width} x ${sheet.height} mm`, margin, 24);
+    doc.text(`Utilization: ${((sheet.utilization || 0) * 100).toFixed(1)}%`, margin, 30);
+    doc.text(`Parts: ${sheet.placed.length}`, margin, 36);
 
-    // отрисовка листа
+    // Drawing
     const availW = pageW - margin * 2;
-    const availH = pageH - 80;
+    const availH = pageH - 70;
     const scale = Math.min(availW / sheet.width, availH / sheet.height);
-    const topY = 50;
+    const topY = 46;
     const leftX = margin + (availW - sheet.width * scale) / 2;
 
+    // Sheet outline
     doc.setDrawColor(0, 0, 0);
     doc.setLineWidth(0.4);
     doc.rect(leftX, topY, sheet.width * scale, sheet.height * scale);
 
-    // детали
+    // Sheet dimensions
+    doc.setFontSize(8);
+    doc.setTextColor(217, 119, 6);
+    doc.text(`${sheet.width} mm`, leftX + (sheet.width * scale) / 2, topY + sheet.height * scale + 5, { align: 'center' });
+    doc.text(`${sheet.height} mm`, leftX - 5, topY + (sheet.height * scale) / 2, { align: 'center', angle: 90 });
+
+    // Parts
     doc.setDrawColor(217, 119, 6);
     doc.setFillColor(254, 243, 199);
     doc.setLineWidth(0.3);
+    doc.setTextColor(0, 0, 0);
     for (let i = 0; i < sheet.placed.length; i++) {
       const p = sheet.placed[i];
+      const pw = p.rotated ? p.h : p.w;
+      const ph = p.rotated ? p.w : p.h;
       const px = leftX + p.x * scale;
-      const py = topY + (sheet.height - p.y - p.h) * scale;
-      doc.rect(px, py, p.w * scale, p.h * scale, 'FD');
-      // номер детали
-      const fs = Math.max(5, Math.min(12, Math.min(p.w, p.h) * scale * 0.4));
+      const py = topY + (sheet.height - p.y - ph) * scale;
+      doc.rect(px, py, pw * scale, ph * scale, 'FD');
+      const fs = Math.max(5, Math.min(12, Math.min(pw, ph) * scale * 0.4));
       doc.setFontSize(fs);
-      doc.setTextColor(0, 0, 0);
-      doc.text(String(i + 1), px + (p.w * scale) / 2, py + (p.h * scale) / 2, { align: 'center' });
+      doc.text(String(i + 1), px + (pw * scale) / 2, py + (ph * scale) / 2, { align: 'center' });
     }
 
-    doc.setTextColor(120, 120, 120);
+    // Footer
+    doc.setTextColor(120, 113, 108);
     doc.setFontSize(8);
-    doc.text('Сгенерировано онлайн-инструментом «Развёртка & Раскрой»', 14, pageH - 10);
+    doc.text('Generated by razvertka.ru', 14, pageH - 8);
   }
 
   doc.save(filename);
