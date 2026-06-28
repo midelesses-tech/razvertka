@@ -1,0 +1,688 @@
+     1→     1→/**
+     2→     2→ * app.js
+     3→     3→ * Главный контроллер приложения.
+     4→     4→ *
+     5→     5→ * Ответственности:
+     6→     6→ *   - инициализация роутера (вкладки «Развёртка» / «Раскрой»);
+     7→     7→ *   - управление темой (светлая/тёмная) с сохранением выбора;
+     8→     8→ *   - статус-бар и тосты (подписки на шину событий);
+     9→     9→ *   - связывание кнопок действий и полей ввода с шиной событий;
+    10→    10→ *   - расчёт развёртки через profile-calculator (с Шага 2);
+    11→    11→ *   - инициализация панели разработчика и UI-гейтинга (freemium).
+    12→    12→ */
+    13→    13→
+    14→    14→import { Router } from './router.js';
+    15→    15→import { eventBus, EVENTS } from './utils/event-bus.js';
+    16→    16→import { calculateSingleBend, buildStandardProfile, calculateUnfold } from './modules/profile-calculator.js';
+    17→    17→import { initDevPanel, applyGating } from './modules/dev-panel.js';
+    18→    18→import { numOrDefault, validateUnfoldParams, markInvalid, clearInvalid } from './utils/validators.js';
+    19→    19→
+    20→    20→const THEME_KEY = 'rzv:theme';
+    21→    21→
+    22→    22→export class App {
+    23→    23→  constructor() {
+    24→    24→    this.router = new Router();
+    25→    25→    /** @type {'light' | 'dark'} */
+    26→    26→    this.theme = 'light';
+    27→    27→    /** Текущие параметры развёртки (из левой панели). */
+    28→    28→    this.unfoldParams = {
+    29→    29→      profileType: 'L',
+    30→    30→      thickness: 2,
+    31→    31→      radius: 3,
+    32→    32→      angle: 90,
+    33→    33→      flangeA: 40,
+    34→    34→      flangeB: 40,
+    35→    35→      flangeC: 40,
+    36→    36→      flangeD: 15,
+    37→    37→      flangeE: 40,
+    38→    38→    };
+    39→    39→    /** Сегменты произвольного профиля (для конструктора custom). */
+    40→    40→    this.customSegments = [
+    41→    41→      { length: 40, angle: 90 },
+    42→    42→      { length: 40, angle: 0 },
+    43→    43→    ];
+    44→    44→    /** Результат последнего расчёта развёртки. */
+    45→    45→    this.lastUnfold = null;
+    46→    46→  }
+    47→    47→
+    48→    48→  /**
+    49→    49→   * Инициализация. Должна вызываться после построения DOM.
+    50→    50→   */
+    51→    51→  async init() {
+    52→    52→    this._initTheme();
+    53→    53→    this._initRouter();
+    54→    54→    this._initStatus();
+    55→    55→    this._initToasts();
+    56→    56→    this._wireInputs();
+    57→    57→    this._wireActions();
+    58→    58→    this._wireExportBar();
+    59→    59→    this._initFlangeFields();
+    60→    60→    this._initCustomEditor();
+    61→    61→    this._initDevPanel();
+    62→    62→
+    63→    63→    this.setStatus('Готово', 'ok');
+    64→    64→    eventBus.emit('app:ready', { ts: Date.now() });
+    65→    65→
+    66→    66→    // Подсказка про dev-панель в консоли
+    67→    67→    console.info('%c[Dev] Панель разработчика: Ctrl+Shift+D или 5 кликов по логотипу', 'color:#f59e0b');
+    68→    68→  }
+    69→    69→
+    70→    70→  // ---------- Тема ----------
+    71→    71→
+    72→    72→  _initTheme() {
+    73→    73→    const saved = localStorage.getItem(THEME_KEY);
+    74→    74→    const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
+    75→    75→    this.theme = saved === 'light' || saved === 'dark' ? saved : (prefersDark ? 'dark' : 'light');
+    76→    76→    this._applyTheme();
+    77→    77→
+    78→    78→    const toggle = document.getElementById('theme-toggle');
+    79→    79→    toggle?.addEventListener('click', () => this.toggleTheme());
+    80→    80→
+    81→    81→    window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change', (e) => {
+    82→    82→      if (!localStorage.getItem(THEME_KEY)) {
+    83→    83→        this.theme = e.matches ? 'dark' : 'light';
+    84→    84→        this._applyTheme();
+    85→    85→      }
+    86→    86→    });
+    87→    87→  }
+    88→    88→
+    89→    89→  toggleTheme() {
+    90→    90→    this.theme = this.theme === 'dark' ? 'light' : 'dark';
+    91→    91→    localStorage.setItem(THEME_KEY, this.theme);
+    92→    92→    this._applyTheme();
+    93→    93→    eventBus.emit(EVENTS.THEME_CHANGE, { theme: this.theme });
+    94→    94→  }
+    95→    95→
+    96→    96→  _applyTheme() {
+    97→    97→    document.documentElement.setAttribute('data-theme', this.theme);
+    98→    98→  }
+    99→    99→
+   100→   100→  // ---------- Роутер ----------
+   101→   101→
+   102→   102→  _initRouter() {
+   103→   103→    this.router.init();
+   104→   104→  }
+   105→   105→
+   106→   106→  // ---------- Статус-бар ----------
+   107→   107→
+   108→   108→  setStatus(msg, kind = 'ok') {
+   109→   109→    const dot = document.getElementById('status-dot');
+   110→   110→    const text = document.getElementById('status-text');
+   111→   111→    if (dot) {
+   112→   112→      dot.classList.remove('is-busy', 'is-error');
+   113→   113→      if (kind === 'busy') dot.classList.add('is-busy');
+   114→   114→      if (kind === 'error') dot.classList.add('is-error');
+   115→   115→    }
+   116→   116→    if (text) text.textContent = msg;
+   117→   117→    eventBus.emit(EVENTS.STATUS_SET, { msg, kind });
+   118→   118→  }
+   119→   119→
+   120→   120→  _initStatus() {
+   121→   121→    eventBus.on(EVENTS.STATUS_SET, ({ msg, kind }) => this.setStatus(msg, kind));
+   122→   122→  }
+   123→   123→
+   124→   124→  // ---------- Тосты ----------
+   125→   125→
+   126→   126→  _initToasts() {
+   127→   127→    const stack = document.getElementById('toast-stack');
+   128→   128→    if (!stack) return;
+   129→   129→    eventBus.on(EVENTS.TOAST_SHOW, ({ title, message, kind = 'ok', timeout = 3200 }) => {
+   130→   130→      const el = document.createElement('div');
+   131→   131→      el.className = `toast toast--${kind}`;
+   132→   132→      el.innerHTML = `
+   133→   133→        ${title ? `<div class="toast__title">${this._escape(title)}</div>` : ''}
+   134→   134→        ${message ? `<div class="toast__msg">${this._escape(message)}</div>` : ''}
+   135→   135→      `;
+   136→   136→      stack.appendChild(el);
+   137→   137→      const timer = setTimeout(() => this._dismissToast(el), timeout);
+   138→   138→      el.addEventListener('click', () => {
+   139→   139→        clearTimeout(timer);
+   140→   140→        this._dismissToast(el);
+   141→   141→      });
+   142→   142→    });
+   143→   143→  }
+   144→   144→
+   145→   145→  _dismissToast(el) {
+   146→   146→    if (!el.parentNode) return;
+   147→   147→    el.style.transition = 'opacity .2s ease, transform .2s ease';
+   148→   148→    el.style.opacity = '0';
+   149→   149→    el.style.transform = 'translateX(20px)';
+   150→   150→    setTimeout(() => el.remove(), 200);
+   151→   151→  }
+   152→   152→
+   153→   153→  _escape(s) {
+   154→   154→    return String(s).replace(/[&<>"']/g, (c) => ({
+   155→   155→      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+   156→   156→    }[c]));
+   157→   157→  }
+   158→   158→
+   159→   159→  // ---------- Поля ввода ----------
+   160→   160→
+   161→   161→  _wireInputs() {
+   162→   162→    document.addEventListener('input', (e) => {
+   163→   163→      const el = e.target.closest('[data-input]');
+   164→   164→      if (!el) return;
+   165→   165→      this._handleInput(el);
+   166→   166→    });
+   167→   167→    document.addEventListener('change', (e) => {
+   168→   168→      const el = e.target.closest('[data-input]');
+   169→   169→      if (!el) return;
+   170→   170→      const r = this._handleInput(el, true);
+   171→   171→      // при смене типа профиля — перерисовать поля полок / конструктор
+   172→   172→      if (el.dataset.input === 'profile-type') {
+   173→   173→        this._renderFlangeFields(r.value);
+   174→   174→        this._toggleCustomEditor(r.value);
+   175→   175→      }
+   176→   176→    });
+   177→   177→  }
+   178→   178→
+   179→   179→  _handleInput(el, committed = false) {
+   180→   180→    const key = el.dataset.input;
+   181→   181→    const value = el.type === 'checkbox' ? el.checked
+   182→   182→      : el.type === 'number' ? (el.value === '' ? null : Number(el.value))
+   183→   183→      : el.value;
+   184→   184→    // Маппинг DOM-ключей (kebab-case) → имена полей unfoldParams (camelCase).
+   185→   185→    // Раньше 'flange-a' не совпадал с 'flangeA', и изменения полок терялись.
+   186→   186→    const DOM_TO_PARAM = {
+   187→   187→      'profile-type': 'profileType',
+   188→   188→      'flange-a': 'flangeA',
+   189→   189→      'flange-b': 'flangeB',
+   190→   190→      'flange-c': 'flangeC',
+   191→   191→      'flange-d': 'flangeD',
+   192→   192→      'flange-e': 'flangeE',
+   193→   193→      'thickness': 'thickness',
+   194→   194→      'radius': 'radius',
+   195→   195→      'angle': 'angle',
+   196→   196→    };
+   197→   197→    const paramName = DOM_TO_PARAM[key];
+   198→   198→    if (paramName && paramName in this.unfoldParams) {
+   199→   199→      this.unfoldParams[paramName] = value;
+   200→   200→      // снимаем подсветку ошибки при исправлении
+   201→   201→      if (el.classList.contains('is-invalid')) clearInvalid(el);
+   202→   202→    }
+   203→   203→    eventBus.emit(EVENTS.INPUT_CHANGE, { key, value, paramName, route: this.router.route, committed });
+   204→   204→    return { value };
+   205→   205→  }
+   206→   206→
+   207→   207→  // ---------- Поля полок + конструктор произвольного профиля ----------
+   208→   208→
+   209→   209→  _initFlangeFields() {
+   210→   210→    const sel = document.querySelector('[data-input="profile-type"]');
+   211→   211→    const initial = sel?.value || 'L';
+   212→   212→    this.unfoldParams.profileType = initial;
+   213→   213→    this._renderFlangeFields(initial);
+   214→   214→    this._toggleCustomEditor(initial);
+   215→   215→  }
+   216→   216→
+   217→   217→  _initCustomEditor() {
+   218→   218→    // кнопка добавления сегмента в конструкторе
+   219→   219→    document.getElementById('custom-add-segment')?.addEventListener('click', () => {
+   220→   220→      // новый сегмент — без гиба после него (angle=0); пользователь сам задаст угол
+   221→   221→      this.customSegments.push({ length: 20, angle: 0 });
+   222→   222→      this._renderCustomEditor();
+   223→   223→    });
+   224→   224→    // делегированная обработка изменений сегментов и удаления
+   225→   225→    document.getElementById('custom-segments')?.addEventListener('input', (e) => {
+   226→   226→      const row = e.target.closest('[data-seg-index]');
+   227→   227→      if (!row) return;
+   228→   228→      const idx = Number(row.dataset.segIndex);
+   229→   229→      const field = e.target.dataset.segField;
+   230→   230→      if (field === 'length') this.customSegments[idx].length = Number(e.target.value) || 0;
+   231→   231→      if (field === 'angle') this.customSegments[idx].angle = Number(e.target.value) || 0;
+   232→   232→    });
+   233→   233→    document.getElementById('custom-segments')?.addEventListener('click', (e) => {
+   234→   234→      const del = e.target.closest('[data-seg-del]');
+   235→   235→      if (!del) return;
+   236→   236→      const idx = Number(del.dataset.segDel);
+   237→   237→      this.customSegments.splice(idx, 1);
+   238→   238→      this._renderCustomEditor();
+   239→   239→    });
+   240→   240→  }
+   241→   241→
+   242→   242→  _toggleCustomEditor(profileType) {
+   243→   243→    const editor = document.getElementById('custom-editor');
+   244→   244→    const stdFields = document.getElementById('flange-fields-group');
+   245→   245→    if (!editor || !stdFields) return;
+   246→   246→    if (profileType === 'custom') {
+   247→   247→      editor.classList.remove('is-hidden');
+   248→   248→      stdFields.classList.add('is-hidden');
+   249→   249→      this._renderCustomEditor();
+   250→   250→    } else {
+   251→   251→      editor.classList.add('is-hidden');
+   252→   252→      stdFields.classList.remove('is-hidden');
+   253→   253→    }
+   254→   254→  }
+   255→   255→
+   256→   256→  _renderCustomEditor() {
+   257→   257→    const list = document.getElementById('custom-segments');
+   258→   258→    if (!list) return;
+   259→   259→    list.innerHTML = '';
+   260→   260→    this.customSegments.forEach((seg, i) => {
+   261→   261→      const row = document.createElement('div');
+   262→   262→      row.className = 'seg-row';
+   263→   263→      row.dataset.segIndex = i;
+   264→   264→      row.innerHTML = `
+   265→   265→        <div class="seg-row__num mono">${i + 1}</div>
+   266→   266→        <div class="field-group">
+   267→   267→          <label class="field-label">Длина, мм</label>
+   268→   268→          <input class="input" type="number" min="0" step="0.1" value="${seg.length}" data-seg-field="length" aria-label="Длина сегмента ${i + 1}" />
+   269→   269→        </div>
+   270→   270→        <div class="field-group">
+   271→   271→          <label class="field-label">Угол гиба, °</label>
+   272→   272→          <input class="input" type="number" min="0" max="180" step="1" value="${seg.angle}" data-seg-field="angle" aria-label="Угол гиба после сегмента ${i + 1}" />
+   273→   273→        </div>
+   274→   274→        <button class="icon-btn seg-row__del" data-seg-del="${i}" title="Удалить сегмент" aria-label="Удалить сегмент ${i + 1}">
+   275→   275→          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+   276→   276→        </button>
+   277→   277→      `;
+   278→   278→      list.appendChild(row);
+   279→   279→    });
+   280→   280→  }
+   281→   281→
+   282→   282→  // ---------- Динамические поля полок под тип профиля ----------
+   283→   283→
+   284→   284→  /**
+   285→   285→   * Конфигурация полей для каждого типа профиля + мини-схема сечения.
+   286→   286→   * Соглашение о размерах (внешние габариты):
+   287→   287→   *   L: A, B — 2 полки, 1 гиб.
+   288→   288→   *   U: A, B — полки (разнополочный), C — стенка. 2 гиба.
+   289→   289→   *   G: A, B — полки, C — стенка, D — отгиб края. 3 гиба (швеллер + 1 загиб).
+   290→   290→   *   C: A, B, C, D, E — 5 полок, Z-образный. 4 гиба.
+   291→   291→   *   custom: конструктор сегментов (длина + угол).
+   292→   292→   */
+   293→   293→  static FLANGE_CONFIG = {
+   294→   294→    L: {
+   295→   295→      label: 'Размеры уголка, мм',
+   296→   296→      hint: 'A и B — внешние длины полок. Один гиб 90°.',
+   297→   297→      fields: [
+   298→   298→        { param: 'flangeA', label: 'Полка A', placeholder: 'A' },
+   299→   299→        { param: 'flangeB', label: 'Полка B', placeholder: 'B' },
+   300→   300→      ],
+   301→   301→      schema: 'L',
+   302→   302→    },
+   303→   303→    U: {
+   304→   304→      label: 'Размеры швеллера, мм',
+   305→   305→      hint: 'A — полка левая, B — полка правая (могут различаться), C — высота стенки. Два гиба 90°.',
+   306→   306→      fields: [
+   307→   307→        { param: 'flangeA', label: 'Полка A', placeholder: 'A' },
+   308→   308→        { param: 'flangeB', label: 'Полка B', placeholder: 'B' },
+   309→   309→        { param: 'flangeC', label: 'Высота C', placeholder: 'C' },
+   310→   310→      ],
+   311→   311→      schema: 'U',
+   312→   312→    },
+   313→   313→    G: {
+   314→   314→      label: 'Размеры G-профиля, мм',
+   315→   315→      hint: '4 полки: A, D — крайние (1 гиб), B, C — промежуточные (2 гиба). Три гиба 90°.',
+   316→   316→      fields: [
+   317→   317→        { param: 'flangeA', label: 'Полка A', placeholder: 'A' },
+   318→   318→        { param: 'flangeB', label: 'Полка B', placeholder: 'B' },
+   319→   319→        { param: 'flangeC', label: 'Стенка C', placeholder: 'C' },
+   320→   320→        { param: 'flangeD', label: 'Отгиб D', placeholder: 'D' },
+   321→   321→      ],
+   322→   322→      schema: 'G',
+   323→   323→    },
+   324→   324→    C: {
+   325→   325→      label: 'Размеры C-профиля, мм',
+   326→   326→      hint: 'Z-образный профиль: A, E — крайние полки, B, C, D — промежуточные. Четыре гиба 90°.',
+   327→   327→      fields: [
+   328→   328→        { param: 'flangeA', label: 'Полка A', placeholder: 'A' },
+   329→   329→        { param: 'flangeB', label: 'Полка B', placeholder: 'B' },
+   330→   330→        { param: 'flangeC', label: 'Стенка C', placeholder: 'C' },
+   331→   331→        { param: 'flangeD', label: 'Полка D', placeholder: 'D' },
+   332→   332→        { param: 'flangeE', label: 'Полка E', placeholder: 'E' },
+   333→   333→      ],
+   334→   334→      schema: 'C',
+   335→   335→    },
+   336→   336→    custom: {
+   337→   337→      label: 'Произвольный профиль',
+   338→   338→      hint: 'Конструктор: добавляйте сегменты с длиной и углом гиба.',
+   339→   339→      fields: [],
+   340→   340→      schema: null,
+   341→   341→    },
+   342→   342→  };
+   343→   343→
+   344→   344→  /**
+   345→   345→   * Мини-SVG схема сечения для каждого профиля — с подписанными размерами A/B/C/D.
+   346→   346→   * Показывает, какой отрезок за что отвечает.
+   347→   347→   * @param {string} schema  'L' | 'U' | 'G' | 'C'
+   348→   348→   * @returns {string} inline SVG
+   349→   349→   */
+   350→   350→  _profileSchemaSVG(schema) {
+   351→   351→    const stroke = 'var(--accent)';
+   352→   352→    const fill = 'var(--accent-soft)';
+   353→   353→    const txt = 'var(--text-muted)';
+   354→   354→    const txtAcc = 'var(--accent)';
+   355→   355→    const fontMono = 'font-family: var(--font-mono); font-size: 11px; font-weight: 700;';
+   356→   356→    const pathAttrs = `fill="${fill}" stroke="${stroke}" stroke-width="2" stroke-linejoin="round"`;
+   357→   357→
+   358→   358→    switch (schema) {
+   359→   359→      case 'L':
+   360→   360→        // уголок L: A снизу, B слева вверх
+   361→   361→        return `<svg viewBox="0 0 120 120" class="profile-schema">
+   362→   362→          <path d="M20 20 L20 90 L100 90" ${pathAttrs}/>
+   363→   363→          <text x="58" y="108" fill="${txtAcc}" style="${fontMono}" text-anchor="middle">A</text>
+   364→   364→          <text x="8" y="58" fill="${txtAcc}" style="${fontMono}" text-anchor="middle" transform="rotate(-90 8 58)">B</text>
+   365→   365→          <circle cx="20" cy="90" r="3" fill="${stroke}"/>
+   366→   366→        </svg>`;
+   367→   367→      case 'U':
+   368→   368→        // швеллер U: A слева, B справа, C сверху (стенка)
+   369→   369→        return `<svg viewBox="0 0 140 110" class="profile-schema">
+   370→   370→          <path d="M20 20 L120 20 L120 90 M20 20 L20 90" ${pathAttrs}/>
+   371→   371→          <text x="70" y="12" fill="${txtAcc}" style="${fontMono}" text-anchor="middle">C (стенка)</text>
+   372→   372→          <text x="12" y="58" fill="${txtAcc}" style="${fontMono}" text-anchor="middle" transform="rotate(-90 12 58)">A</text>
+   373→   373→          <text x="128" y="58" fill="${txtAcc}" style="${fontMono}" text-anchor="middle" transform="rotate(90 128 58)">B</text>
+   374→   374→        </svg>`;
+   375→   375→      case 'G':
+   376→   376→        // G-профиль: 4 полки A,B,C,D, 3 гиба. A,D — крайние, B,C — промежуточные.
+   377→   377→        // Форма: A (вниз) → B (стенка) → C (полка) → D (загиб)
+   378→   378→        return `<svg viewBox="0 0 170 110" class="profile-schema">
+   379→   379→          <path d="M20 90 L20 50 L70 50 L70 20 L150 20" ${pathAttrs}/>
+   380→   380→          <text x="12" y="72" fill="${txtAcc}" style="${fontMono}" text-anchor="middle" transform="rotate(-90 12 72)">A</text>
+   381→   381→          <text x="45" y="44" fill="${txtAcc}" style="${fontMono}" text-anchor="middle">B</text>
+   382→   382→          <text x="110" y="14" fill="${txtAcc}" style="${fontMono}" text-anchor="middle">C</text>
+   383→   383→          <text x="142" y="36" fill="${txtAcc}" style="${fontMono}" text-anchor="middle" transform="rotate(90 142 36)">D</text>
+   384→   384→        </svg>`;
+   385→   385→      case 'C':
+   386→   386→        // C-профиль: Z-образный, 5 полок A,B,C,D,E, 4 гиба.
+   387→   387→        // ступенчатая форма: A (вниз) → B (вправо) → C (вверх) → D (вправо) → E (вниз)
+   388→   388→        return `<svg viewBox="0 0 180 110" class="profile-schema">
+   389→   389→          <path d="M15 90 L15 55 L65 55 L65 25 L115 25 L115 55 L165 55 L165 90" ${pathAttrs}/>
+   390→   390→          <text x="8" y="74" fill="${txtAcc}" style="${fontMono}" text-anchor="middle" transform="rotate(-90 8 74)">A</text>
+   391→   391→          <text x="40" y="48" fill="${txtAcc}" style="${fontMono}" text-anchor="middle">B</text>
+   392→   392→          <text x="90" y="18" fill="${txtAcc}" style="${fontMono}" text-anchor="middle">C</text>
+   393→   393→          <text x="140" y="48" fill="${txtAcc}" style="${fontMono}" text-anchor="middle">D</text>
+   394→   394→          <text x="172" y="74" fill="${txtAcc}" style="${fontMono}" text-anchor="middle" transform="rotate(90 172 74)">E</text>
+   395→   395→        </svg>`;
+   396→   396→      default:
+   397→   397→        return '';
+   398→   398→    }
+   399→   399→  }
+   400→   400→
+   401→   401→  /**
+   402→   402→   * Отрисовать поля полок + мини-схему под выбранный тип профиля.
+   403→   403→   * Сохраняет введённые значения из unfoldParams.
+   404→   404→   * @param {string} profileType  'L' | 'U' | 'G' | 'C' | 'custom'
+   405→   405→   */
+   406→   406→  _renderFlangeFields(profileType) {
+   407→   407→    const container = document.getElementById('flange-fields');
+   408→   408→    const labelEl = document.getElementById('flange-fields-label');
+   409→   409→    const hintEl = document.getElementById('flange-fields-hint');
+   410→   410→    const schemaEl = document.getElementById('profile-schema');
+   411→   411→    if (!container) return;
+   412→   412→
+   413→   413→    const cfg = App.FLANGE_CONFIG[profileType] || App.FLANGE_CONFIG.L;
+   414→   414→    if (labelEl) labelEl.textContent = cfg.label;
+   415→   415→    if (hintEl) hintEl.textContent = cfg.hint;
+   416→   416→    if (schemaEl) schemaEl.innerHTML = cfg.schema ? this._profileSchemaSVG(cfg.schema) : '';
+   417→   417→
+   418→   418→    container.innerHTML = '';
+   419→   419→    for (const f of cfg.fields) {
+   420→   420→      const wrap = document.createElement('div');
+   421→   421→      wrap.className = 'field-group';
+   422→   422→      const dataKey = f.param === 'flangeA' ? 'flange-a'
+   423→   423→        : f.param === 'flangeB' ? 'flange-b'
+   424→   424→        : f.param === 'flangeC' ? 'flange-c'
+   425→   425→        : f.param === 'flangeD' ? 'flange-d' : 'flange-e';
+   426→   426→      wrap.innerHTML = `
+   427→   427→        <label class="field-label">${this._escape(f.label)}</label>
+   428→   428→        <input class="input" type="number" min="1" step="0.1"
+   429→   429→               value="${this.unfoldParams[f.param] ?? ''}"
+   430→   430→               placeholder="${this._escape(f.placeholder)}"
+   431→   431→               data-input="${dataKey}"
+   432→   432→               aria-label="${this._escape(f.label)}" />
+   433→   433→      `;
+   434→   434→      container.appendChild(wrap);
+   435→   435→    }
+   436→   436→
+   437→   437→    // сетка под число полей
+   438→   438→    const n = cfg.fields.length;
+   439→   439→    container.classList.remove('field-row', 'field-row--3');
+   440→   440→    if (n >= 4) container.classList.add('field-row');
+   441→   441→    else if (n === 3) container.classList.add('field-row--3');
+   442→   442→    else container.classList.add('field-row');
+   443→   443→  }
+   444→   444→
+   445→   445→  // ---------- Кнопки действий ----------
+   446→   446→
+   447→   447→  _wireActions() {
+   448→   448→    document.addEventListener('click', (e) => {
+   449→   449→      const btn = e.target.closest('[data-action]');
+   450→   450→      if (!btn) return;
+   451→   451→      const action = btn.dataset.action;
+   452→   452→      switch (action) {
+   453→   453→        case 'calc-unfold':
+   454→   454→          this._calculateUnfold();
+   455→   455→          break;
+   456→   456→        case 'run-nesting':
+   457→   457→          this.setStatus('Оптимизация раскроя…', 'busy');
+   458→   458→          eventBus.emit(EVENTS.NESTING_RUN, {});
+   459→   459→          setTimeout(() => {
+   460→   460→            this.setStatus('Готово', 'ok');
+   461→   461→            eventBus.emit(EVENTS.TOAST_SHOW, {
+   462→   462→              title: 'Раскрой',
+   463→   463→              message: 'Алгоритм упаковки будет реализован на шаге 5.',
+   464→   464→              kind: 'warn',
+   465→   465→            });
+   466→   466→          }, 250);
+   467→   467→          break;
+   468→   468→        case 'add-part':
+   469→   469→          eventBus.emit('nesting:add-part', {});
+   470→   470→          break;
+   471→   471→        default:
+   472→   472→          break;
+   473→   473→      }
+   474→   474→    });
+   475→   475→
+   476→   476→    // Чипы-инструменты в тулбарах
+   477→   477→    document.addEventListener('click', (e) => {
+   478→   478→      const chip = e.target.closest('[data-tool]');
+   479→   479→      if (!chip) return;
+   480→   480→      chip.classList.toggle('is-active');
+   481→   481→      eventBus.emit('tool:toggle', {
+   482→   482→        tool: chip.dataset.tool,
+   483→   483→        active: chip.classList.contains('is-active'),
+   484→   484→        route: this.router.route,
+   485→   485→      });
+   486→   486→    });
+   487→   487→  }
+   488→   488→
+   489→   489→  // ---------- Расчёт развёртки (Шаг 2) ----------
+   490→   490→
+   491→   491→  _calculateUnfold() {
+   492→   492→    this.setStatus('Расчёт развёртки…', 'busy');
+   493→   493→    const p = this.unfoldParams;
+   494→   494→
+   495→   495→    // Сначала снимаем подсветку со всех полей
+   496→   496→    document.querySelectorAll('[data-input].is-invalid').forEach(clearInvalid);
+   497→   497→    document.querySelectorAll('[data-seg-field].is-invalid').forEach(clearInvalid);
+   498→   498→
+   499→   499→    // Базовая валидация (толщина, радиус, угол) — K-фактор считается автоматически по R/S
+   500→   500→    const v = validateUnfoldParams({
+   501→   501→      thickness: p.thickness,
+   502→   502→      radius: p.radius,
+   503→   503→      angle: p.angle,
+   504→   504→      kfactor: 0.5, // заглушка для валидатора (не используется, K считается по таблице)
+   505→   505→      flangeA: p.flangeA,
+   506→   506→      flangeB: p.flangeB,
+   507→   507→    });
+   508→   508→    if (!v.ok) {
+   509→   509→      const match = /^([a-zA-Z]+):/.exec(v.error);
+   510→   510→      if (match) {
+   511→   511→        const keyMap = { flangeA: 'flange-a', flangeB: 'flange-b', flangeC: 'flange-c', flangeD: 'flange-d', flangeE: 'flange-e', thickness: 'thickness', radius: 'radius', angle: 'angle' };
+   512→   512→        const sel = keyMap[match[1]] || match[1].toLowerCase();
+   513→   513→        const fieldEl = document.querySelector(`[data-input="${sel}"]`);
+   514→   514→        markInvalid(fieldEl, v.error);
+   515→   515→      }
+   516→   516→      this.setStatus('Ошибка ввода', 'error');
+   517→   517→      eventBus.emit(EVENTS.TOAST_SHOW, {
+   518→   518→        title: 'Не удалось рассчитать', message: v.error, kind: 'danger',
+   519→   519→      });
+   520→   520→      return;
+   521→   521→    }
+   522→   522→
+   523→   523→    const kind = p.profileType;
+   524→   524→    let result;
+   525→   525→
+   526→   526→    if (kind === 'custom') {
+   527→   527→      // Конструктор произвольного профиля: сегменты {length, angle}
+   528→   528→      if (this.customSegments.length === 0) {
+   529→   529→        this.setStatus('Ошибка ввода', 'error');
+   530→   530→        eventBus.emit(EVENTS.TOAST_SHOW, {
+   531→   531→          title: 'Не удалось рассчитать', message: 'Добавьте хотя бы один сегмент', kind: 'danger',
+   532→   532→        });
+   533→   533→        return;
+   534→   534→      }
+   535→   535→      // Построить сегменты: flat(length) + bend(angle) для каждого, кроме последнего (угол 0 = нет гиба)
+   536→   536→      const segs = [];
+   537→   537→      for (let i = 0; i < this.customSegments.length; i++) {
+   538→   538→        const s = this.customSegments[i];
+   539→   539→        if (s.length == null || s.length <= 0) {
+   540→   540→          const el = document.querySelector(`[data-seg-index="${i}"] [data-seg-field="length"]`);
+   541→   541→          markInvalid(el, 'Длина должна быть положительной');
+   542→   542→          this.setStatus('Ошибка ввода', 'error');
+   543→   543→          eventBus.emit(EVENTS.TOAST_SHOW, {
+   544→   544→            title: 'Не удалось рассчитать', message: `Сегмент ${i + 1}: длина должна быть положительной`, kind: 'danger',
+   545→   545→          });
+   546→   546→          return;
+   547→   547→        }
+   548→   548→        segs.push({ type: 'flat', length: s.length, label: `Сегмент ${i + 1}`, tag: `seg-${i}` });
+   549→   549→        if (s.angle > 0) segs.push({ type: 'bend', angle: s.angle, radius: p.radius, label: `Гиб ${i + 1}` });
+   550→   550→      }
+   551→   551→      const calc = calculateUnfold(segs, { thickness: p.thickness, radius: p.radius });
+   552→   552→      const firstBend = calc.bends[0] || {};
+   553→   553→      result = {
+   554→   554→        ok: true,
+   555→   555→        value: {
+   556→   556→          ba: firstBend.ba ?? 0,
+   557→   557→          bd: firstBend.bd ?? 0,
+   558→   558→          totalLength: calc.totalLength,
+   559→   559→          bendCount: calc.bendCount,
+   560→   560→          segments: calc.segments,
+   561→   561→          profile: 'custom',
+   562→   562→          flats: calc.flats,
+   563→   563→          li: calc.li,
+   564→   564→          setback: calc.setback,
+   565→   565→        },
+   566→   566→      };
+   567→   567→    } else {
+   568→   568→      // Стандартный профиль: валидация нужных полок
+   569→   569→      const needsC = ['U', 'G', 'C'].includes(kind);
+   570→   570→      const needsD = ['G', 'C'].includes(kind);
+   571→   571→      const needsE = kind === 'C';
+   572→   572→      const fail = (sel, msg) => {
+   573→   573→        markInvalid(document.querySelector(`[data-input="${sel}"]`), msg);
+   574→   574→        this.setStatus('Ошибка ввода', 'error');
+   575→   575→        eventBus.emit(EVENTS.TOAST_SHOW, { title: 'Не удалось рассчитать', message: msg, kind: 'danger' });
+   576→   576→      };
+   577→   577→      if (needsC && (p.flangeC == null || p.flangeC <= 0)) { fail('flange-c', 'Высота C должна быть положительной'); return; }
+   578→   578→      if (needsD && (p.flangeD == null || p.flangeD <= 0)) { fail('flange-d', 'Размер D должен быть положительным'); return; }
+   579→   579→      if (needsE && (p.flangeE == null || p.flangeE <= 0)) { fail('flange-e', 'Размер E должен быть положительным'); return; }
+   580→   580→
+   581→   581→      const segs = buildStandardProfile(kind, {
+   582→   582→        flangeA: p.flangeA, flangeB: p.flangeB,
+   583→   583→        flangeC: p.flangeC, flangeD: p.flangeD, flangeE: p.flangeE,
+   584→   584→        angle: p.angle, thickness: p.thickness, radius: p.radius,
+   585→   585→      });
+   586→   586→      const calc = calculateUnfold(segs, { thickness: p.thickness, radius: p.radius });
+   587→   587→      const firstBend = calc.bends[0] || {};
+   588→   588→      result = {
+   589→   589→        ok: true,
+   590→   590→        value: {
+   591→   591→          ba: firstBend.ba ?? 0,
+   592→   592→          bd: firstBend.bd ?? 0,
+   593→   593→          totalLength: calc.totalLength,
+   594→   594→          bendCount: calc.bendCount,
+   595→   595→          segments: calc.segments,
+   596→   596→          profile: kind,
+   597→   597→          flats: calc.flats,
+   598→   598→          li: calc.li,
+   599→   599→          setback: calc.setback,
+   600→   600→        },
+   601→   601→      };
+   602→   602→    }
+   603→   603→
+   604→   604→    if (!result.ok) {
+   605→   605→      this.setStatus('Ошибка расчёта', 'error');
+   606→   606→      eventBus.emit(EVENTS.TOAST_SHOW, {
+   607→   607→        title: 'Не удалось рассчитать',
+   608→   608→        message: result.error,
+   609→   609→        kind: 'danger',
+   610→   610→      });
+   611→   611→      return;
+   612→   612→    }
+   613→   613→
+   614→   614→    this.lastUnfold = result.value;
+   615→   615→    this._renderUnfoldReadout(result.value);
+   616→   616→    this.setStatus('Готово', 'ok');
+   617→   617→    eventBus.emit(EVENTS.UNFOLD_CALCULATED, result.value);
+   618→   618→    eventBus.emit(EVENTS.TOAST_SHOW, {
+   619→   619→      title: 'Развёртка рассчитана',
+   620→   620→      message: `L = ${result.value.totalLength.toFixed(2)} мм · BA = ${result.value.ba.toFixed(3)} · BD = ${result.value.bd.toFixed(3)}`,
+   621→   621→      kind: 'ok',
+   622→   622→    });
+   623→   623→
+   624→   624→    // разрешить экспорт (Шаг 6 подключит реальный экспорт)
+   625→   625→    eventBus.emit('export:availability', { formats: ['svg', 'dxf'] });
+   626→   626→  }
+   627→   627→
+   628→   628→  _renderUnfoldReadout(value) {
+   629→   629→    const set = (key, text) => {
+   630→   630→      const el = document.querySelector(`[data-out="${key}"]`);
+   631→   631→      if (el) el.textContent = text;
+   632→   632→    };
+   633→   633→    const f = value.flats || {};
+   634→   634→    const fmt = (v) => (v != null && v !== 0 ? `${v.toFixed(2)} мм` : '—');
+   635→   635→    set('profile', value.profile ?? '—');
+   636→   636→    set('bend-count', String(value.bendCount ?? '—'));
+   637→   637→    set('la', fmt(f.La));
+   638→   638→    set('lb', fmt(f.Lb));
+   639→   639→    set('lc', fmt(f.Lc));
+   640→   640→    set('ld', fmt(f.Ld));
+   641→   641→    set('le', fmt(f.Le));
+   642→   642→    set('li', value.li ? `${value.li.toFixed(3)} мм` : '—');
+   643→   643→    set('total-length', `${value.totalLength.toFixed(2)} мм`);
+   644→   644→  }
+   645→   645→
+   646→   646→  // ---------- Экспорт ----------
+   647→   647→
+   648→   648→  _wireExportBar() {
+   649→   649→    const bar = document.getElementById('export-bar');
+   650→   650→    if (!bar) return;
+   651→   651→    // Пометить платные форматы для гейтинга
+   652→   652→    bar.querySelectorAll('[data-export]').forEach((b) => {
+   653→   653→      const fmt = b.dataset.export;
+   654→   654→      if (fmt === 'pdf') b.setAttribute('data-feature', 'exportPDF');
+   655→   655→      if (fmt === 'dxf') b.setAttribute('data-feature', 'exportDXF');
+   656→   656→      // svg — бесплатно, без data-feature
+   657→   657→    });
+   658→   658→
+   659→   659→    bar.addEventListener('click', (e) => {
+   660→   660→      const btn = e.target.closest('[data-export]');
+   661→   661→      if (!btn || btn.disabled) return;
+   662→   662→      eventBus.emit(EVENTS.EXPORT_REQUEST, { format: btn.dataset.export, route: this.router.route });
+   663→   663→      eventBus.emit(EVENTS.TOAST_SHOW, {
+   664→   664→        title: 'Экспорт',
+   665→   665→        message: `Формат ${btn.dataset.export.toUpperCase()} будет реализован на шаге 6.`,
+   666→   666→        kind: 'warn',
+   667→   667→      });
+   668→   668→    });
+   669→   669→
+   670→   670→    eventBus.on('export:availability', ({ formats }) => {
+   671→   671→      bar.querySelectorAll('[data-export]').forEach((b) => {
+   672→   672→        // не разблокировать платные, если гейтинг их закрыл
+   673→   673→        if (b.classList.contains('is-locked-wrap')) return;
+   674→   674→        if (formats.includes(b.dataset.export)) {
+   675→   675→          b.disabled = false;
+   676→   676→        }
+   677→   677→      });
+   678→   678→      applyGating();
+   679→   679→    });
+   680→   680→  }
+   681→   681→
+   682→   682→  // ---------- Панель разработчика + гейтинг ----------
+   683→   683→
+   684→   684→  _initDevPanel() {
+   685→   685→    initDevPanel();
+   686→   686→  }
+   687→   687→}
+   688→   688→

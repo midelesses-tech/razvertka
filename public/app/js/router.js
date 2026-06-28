@@ -1,6 +1,6 @@
 /**
  * router.js
- * Переключение между режимами «Развёртка» и «Раскрой».
+ * Переключение между тремя режимами: Развёртка / Раскрой / Калькулятор.
  *
  * Связывает DOM-атрибуты:
  *   [data-route]   — кнопки вкладок в шапке
@@ -8,14 +8,17 @@
  *   [data-view]    — центральные области визуализации
  *
  * Публикует событие EVENTS.ROUTE_CHANGE.
- * Поддерживает хеш-навигацию (#unfold / #nesting) и History API.
+ * Поддерживает хеш-навигацию (#unfold / #nesting / #calc) и History API.
  */
 
 import { eventBus, EVENTS } from './utils/event-bus.js';
 
+/** @type {Array<'unfold'|'nesting'|'calc'>} */
+const ROUTES = ['unfold', 'nesting', 'calc'];
+
 export class Router {
   constructor() {
-    /** @type {'unfold' | 'nesting'} */
+    /** @type {'unfold' | 'nesting' | 'calc'} */
     this.current = 'unfold';
     this._tabButtons = [];
     this._panels = [];
@@ -48,10 +51,12 @@ export class Router {
       if (!(e.ctrlKey || e.metaKey)) return;
       if (e.key === 'ArrowLeft') {
         e.preventDefault();
-        this.navigate(this.current === 'nesting' ? 'unfold' : 'unfold');
+        const idx = ROUTES.indexOf(this.current);
+        this.navigate(ROUTES[Math.max(0, idx - 1)]);
       } else if (e.key === 'ArrowRight') {
         e.preventDefault();
-        this.navigate(this.current === 'unfold' ? 'nesting' : 'nesting');
+        const idx = ROUTES.indexOf(this.current);
+        this.navigate(ROUTES[Math.min(ROUTES.length - 1, idx + 1)]);
       }
     });
 
@@ -60,11 +65,11 @@ export class Router {
 
   /**
    * Перейти к маршруту.
-   * @param {'unfold' | 'nesting'} route
+   * @param {'unfold' | 'nesting' | 'calc'} route
    * @param {{source?: string}} [opts]
    */
   navigate(route, opts = {}) {
-    if (route !== 'unfold' && route !== 'nesting') {
+    if (!ROUTES.includes(route)) {
       console.warn(`[Router] unknown route "${route}"`);
       return;
     }
@@ -107,7 +112,7 @@ export class Router {
 
   _syncFromHash() {
     const hash = window.location.hash.replace('#', '');
-    if (hash === 'unfold' || hash === 'nesting') {
+    if (ROUTES.includes(hash)) {
       this.navigate(hash, { source: 'hash' });
     } else {
       this._apply();

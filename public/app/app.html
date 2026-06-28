@@ -4,11 +4,21 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Развёртка и раскрой — приложение</title>
-  <meta name="description" content="Развёртка профилей с учётом K-фактора и оптимизация раскроя листового металла. Работает в браузере, без сервера." />
+  <meta name="description" content="Онлайн-инструмент: расчёт развёртки профилей с автоматическим K-фактором по таблице R/S, оптимизация раскроя листа алгоритмом MaxRects, металлокалькулятор. Экспорт в DXF, SVG, PDF." />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d97706' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 3h7v7H3z'/%3E%3Cpath d='M14 3h7v7h-7z'/%3E%3Cpath d='M3 14h7v7H3z'/%3E%3Cpath d='M14 14h7v7h-7z'/%3E%3C/svg%3E" />
-  <link rel="stylesheet" href="css/main.css" />
-  <link rel="stylesheet" href="css/layout.css" />
-  <link rel="stylesheet" href="css/canvas.css" />
+  <link rel="stylesheet" href="css/main.css?v=11" />
+  <link rel="stylesheet" href="css/layout.css?v=11" />
+  <link rel="stylesheet" href="css/canvas.css?v=11" />
+  <script>
+    // FOUC fix: применить тему до первой отрисовки
+    (function () {
+      try {
+        var t = localStorage.getItem('rzv:theme');
+        if (!t) t = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body>
   <div class="app-shell">
@@ -27,7 +37,7 @@
         </div>
       </div>
 
-      <!-- Tab switcher -->
+      <!-- Tab switcher (3 вкладки) -->
       <nav class="tabs" role="tablist" aria-label="Режим работы">
         <button class="tab is-active" role="tab" aria-selected="true" data-route="unfold" id="tab-unfold">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v6l9 4 9-4V7"/></svg>
@@ -37,9 +47,36 @@
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M3 9h11V3"/><path d="M14 21V9h7"/></svg>
           <span>Раскрой</span>
         </button>
+        <button class="tab" role="tab" aria-selected="false" data-route="calc" id="tab-calc">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="10" y2="10"/><line x1="13" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="10" y2="14"/><line x1="13" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="10" y2="18"/><line x1="13" y1="18" x2="16" y2="18"/></svg>
+          <span>Калькулятор</span>
+        </button>
       </nav>
 
       <div class="header__tools">
+        <button class="icon-btn" id="projects-btn" type="button" title="Проекты" aria-label="Проекты">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 3h10v9a2 2 0 0 1-2 2H3z"/></svg>
+        </button>
+        <button class="acct-btn" id="account-btn" type="button" aria-label="Аккаунт">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span id="acct-label">Войти</span>
+          <span class="acct-btn__plan" id="acct-plan" hidden>PRO</span>
+        </button>
+        <!-- dropdown личного кабинета -->
+        <div class="acct-menu" id="acct-menu" aria-hidden="true">
+          <button class="acct-menu__item" data-action="open-plans" type="button">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            Тарифы
+          </button>
+          <button class="acct-menu__item" id="acct-plans" data-action="open-projects" type="button" style="display:none">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 3h10v9a2 2 0 0 1-2 2H3z"/></svg>
+            Проекты
+          </button>
+          <button class="acct-menu__item acct-menu__item--danger" id="acct-logout" data-action="logout" type="button" style="display:none">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Выйти
+          </button>
+        </div>
         <button class="icon-btn" id="theme-toggle" type="button" title="Переключить тему" aria-label="Переключить тему">
           <svg class="icon-sun" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
           <svg class="icon-moon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
@@ -52,11 +89,12 @@
 
       <!-- ----- LEFT PANEL ----- -->
       <aside class="app-sidebar" id="sidebar" aria-label="Панель параметров">
+
         <!-- Panel: Развёртка -->
         <section class="panel" data-panel="unfold" aria-labelledby="panel-unfold-title">
           <div class="panel__head">
             <h2 class="panel__title" id="panel-unfold-title">Параметры развёртки</h2>
-            <span class="panel__badge">K-фактор</span>
+            <span class="panel__badge">K по R/S</span>
           </div>
 
           <div class="panel__body">
@@ -67,7 +105,8 @@
                   <option value="L">Уголок (L)</option>
                   <option value="U">Швеллер (U)</option>
                   <option value="G">G-профиль</option>
-                  <option value="C">C-профиль</option>
+                  <option value="C">C-профиль (Z-образный)</option>
+                  <option value="clamp">Хомут (замкнутый)</option>
                   <option value="custom">Произвольный…</option>
                 </select>
               </div>
@@ -93,22 +132,15 @@
 
             <div class="field-group" id="flange-fields-group">
               <label class="field-label" id="flange-fields-label">Размеры полок, мм</label>
-              <div class="profile-schema-box glass" id="profile-schema" aria-hidden="true">
-                <!-- мини-SVG схема сечения генерируется под тип профиля -->
-              </div>
-              <div class="field-row" id="flange-fields">
-                <!-- поля генерируются динамически под тип профиля -->
-              </div>
+              <div class="profile-schema-box glass" id="profile-schema" aria-hidden="true"></div>
+              <div class="field-row" id="flange-fields"></div>
               <p class="field-hint" id="flange-fields-hint"></p>
             </div>
 
-            <!-- Конструктор произвольного профиля (показывается только для custom) -->
             <div class="field-group is-hidden" id="custom-editor">
               <label class="field-label">Сегменты профиля</label>
               <p class="field-hint">Каждый сегмент — прямой отрезок + угол гиба после него (0 = последний).</p>
-              <div class="seg-list" id="custom-segments">
-                <!-- строки сегментов генерируются в JS -->
-              </div>
+              <div class="seg-list" id="custom-segments"></div>
               <button class="btn btn--ghost btn--block" type="button" id="custom-add-segment">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
                 Добавить сегмент
@@ -119,6 +151,8 @@
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
               Рассчитать развёртку
             </button>
+
+            <div id="calc-result" class="is-hidden"></div>
           </div>
         </section>
 
@@ -126,7 +160,7 @@
         <section class="panel is-hidden" data-panel="nesting" aria-labelledby="panel-nesting-title">
           <div class="panel__head">
             <h2 class="panel__title" id="panel-nesting-title">Параметры раскроя</h2>
-            <span class="panel__badge">Nesting</span>
+            <span class="panel__badge">MaxRects</span>
           </div>
 
           <div class="panel__body">
@@ -143,20 +177,16 @@
             </div>
 
             <div class="subhead">Детали</div>
-            <div class="field-row">
-              <div class="field-group">
-                <label class="field-label" for="ns-part-w">Ширина, мм</label>
-                <input class="input" id="ns-part-w" type="number" min="1" value="300" data-input="part-width" />
-              </div>
-              <div class="field-group">
-                <label class="field-label" for="ns-part-l">Длина, мм</label>
-                <input class="input" id="ns-part-l" type="number" min="1" value="500" data-input="part-length" />
-              </div>
-              <div class="field-group">
-                <label class="field-label" for="ns-part-q">Кол-во</label>
-                <input class="input" id="ns-part-q" type="number" min="1" value="8" data-input="part-qty" />
-              </div>
+            <div class="nest-parts-head">
+              <span>№</span>
+              <span>Ширина</span>
+              <span>×</span>
+              <span>Длина</span>
+              <span>×</span>
+              <span>Кол-во</span>
+              <span></span>
             </div>
+            <div class="nest-parts" id="nest-parts"></div>
             <button class="btn btn--ghost btn--block" type="button" data-action="add-part">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
               Добавить деталь
@@ -185,10 +215,86 @@
             </button>
           </div>
         </section>
+
+        <!-- Panel: Калькулятор -->
+        <section class="panel is-hidden" data-panel="calc" aria-labelledby="panel-calc-title">
+          <div class="panel__head">
+            <h2 class="panel__title" id="panel-calc-title">Металлокалькулятор</h2>
+            <span class="panel__badge">Вес · Длина</span>
+          </div>
+
+          <div class="panel__body">
+            <div class="field-group">
+              <label class="field-label" for="mc-profile">Тип профиля</label>
+              <div class="select-wrap">
+                <select class="select" id="mc-profile" data-input="mc-profile">
+                  <option value="round">Круг</option>
+                  <option value="pipe">Труба круглая</option>
+                  <option value="square">Квадрат</option>
+                  <option value="rect">Полоса</option>
+                  <option value="square_pipe">Труба квадратная</option>
+                  <option value="rect_pipe">Труба прямоугольная</option>
+                  <option value="angle">Уголок</option>
+                  <option value="channel">Швеллер</option>
+                  <option value="ibeam">Двутавр</option>
+                  <option value="flat">Полоса</option>
+                  <option value="sheet">Лист</option>
+                  <option value="hex">Шестигранник</option>
+                  <option value="strip">Лента</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <label class="field-label" for="mc-material">Материал</label>
+              <div class="select-wrap">
+                <select class="select" id="mc-material" data-input="mc-material">
+                  <option value="steel">Сталь (7850)</option>
+                  <option value="aluminum">Алюминий (2700)</option>
+                  <option value="stainless">Нержавейка (7900)</option>
+                  <option value="copper">Медь (8940)</option>
+                  <option value="brass">Латунь (8500)</option>
+                  <option value="bronze">Бронза (8800)</option>
+                  <option value="zinc">Цинк (7140)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="subhead">Размеры</div>
+            <div class="field-row" id="mc-dims"></div>
+
+            <div class="subhead">Режим расчёта</div>
+            <div class="field-group">
+              <label class="field-label" for="mc-mode">Что считаем</label>
+              <div class="select-wrap">
+                <select class="select" id="mc-mode" data-input="mc-mode">
+                  <option value="weight">Найти вес по длине</option>
+                  <option value="length">Найти длину по весу</option>
+                </select>
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field-group">
+                <label class="field-label" for="mc-value"><span id="mc-value-label">Длина, м</span></label>
+                <input class="input" id="mc-value" type="number" min="0" step="0.1" value="1" />
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="mc-qty"><span id="mc-qty-label">Количество</span></label>
+                <input class="input" id="mc-qty" type="number" min="1" step="1" value="1" />
+              </div>
+            </div>
+
+            <button class="btn btn--primary btn--block" type="button" data-action="run-metal-calc">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+              Рассчитать
+            </button>
+          </div>
+        </section>
       </aside>
 
       <!-- ----- CENTER VIEW ----- -->
       <section class="app-canvas" aria-label="Визуализация">
+
         <!-- View: Развёртка -->
         <div class="view is-active" data-view="unfold">
           <div class="view__toolbar">
@@ -239,17 +345,46 @@
             </div>
           </div>
           <div class="view__stage">
-            <div class="stage stage--full">
+            <div class="stage stage--full" style="flex-direction:column; gap:12px;">
+              <div class="nest-warn is-hidden" id="nest-warn" role="alert"></div>
               <div class="stage__label">Лист</div>
-              <div class="stage__canvas" id="stage-sheet">
+              <div class="stage__canvas" id="stage-sheet" style="flex:1 1 auto;">
                 <div class="placeholder"><span>Раскладка появится здесь</span></div>
               </div>
+              <table class="nesting-table" id="nesting-table" aria-label="Координаты деталей"></table>
             </div>
           </div>
           <div class="view__readout" id="nesting-readout">
             <div class="readout-item"><span class="readout-item__k">Листов</span><span class="readout-item__v" data-out="sheet-count">—</span></div>
             <div class="readout-item"><span class="readout-item__k">Использование</span><span class="readout-item__v" data-out="utilization">—</span></div>
             <div class="readout-item"><span class="readout-item__k">Размещено</span><span class="readout-item__v" data-out="placed">—</span></div>
+            <div class="readout-item"><span class="readout-item__k">Не размещено</span><span class="readout-item__v" data-out="unplaced">—</span></div>
+          </div>
+        </div>
+
+        <!-- View: Калькулятор -->
+        <div class="view is-hidden" data-view="calc">
+          <div class="view__toolbar">
+            <div class="view__title">Расчёт металлопроката</div>
+            <div class="view__tools">
+              <span class="chip" style="cursor:default;">Вес/Длина по ГОСТ</span>
+            </div>
+          </div>
+          <div class="view__stage">
+            <div class="stage stage--full">
+              <div class="stage__label">Результат</div>
+              <div class="stage__canvas" id="mc-result-stage" style="padding: 16px; display: block; background: var(--surface);">
+                <div class="mc-result-empty">Введите параметры и нажмите «Рассчитать»</div>
+              </div>
+            </div>
+          </div>
+          <div class="view__readout" id="calc-readout">
+            <div class="readout-item"><span class="readout-item__k">Вес 1м</span><span class="readout-item__v" data-out="mc-weight-1m">—</span></div>
+            <div class="readout-item"><span class="readout-item__k">Площадь</span><span class="readout-item__v" data-out="mc-area">—</span></div>
+            <div class="readout-item"><span class="readout-item__k">Плотность</span><span class="readout-item__v" data-out="mc-density">—</span></div>
+            <div class="readout-item"><span class="readout-item__k">Всего вес</span><span class="readout-item__v" data-out="mc-total-weight">—</span></div>
+            <div class="readout-item"><span class="readout-item__k">Всего длина</span><span class="readout-item__v" data-out="mc-total-length">—</span></div>
+            <div class="readout-item"><span class="readout-item__k">Штук</span><span class="readout-item__v" data-out="mc-qty">—</span></div>
           </div>
         </div>
       </section>
@@ -265,13 +400,11 @@
         <span class="footer__seg">Frontend-only · ES6-модули</span>
         <span class="footer__sep">·</span>
         <span class="footer__seg">Данные хранятся локально</span>
-        <span class="footer__sep">·</span>
-        <span class="footer__seg">Все функции бесплатны</span>
       </div>
       <div class="footer__export" id="export-bar">
         <button class="chip" data-export="svg" disabled title="Экспорт SVG">SVG</button>
         <button class="chip" data-export="dxf" disabled title="Экспорт DXF">DXF</button>
-        <button class="chip" data-export="pdf" disabled title="Экспорт PDF">PDF</button>
+        <button class="chip" data-export="pdf" disabled title="Экспорт PDF" data-feature="exportPDF">PDF</button>
       </div>
     </footer>
   </div>
@@ -295,9 +428,11 @@
     </div>
     <p class="dev-panel__hint">
       Эта панель видна только в режиме разработки. Включите премиум,
-      чтобы протестировать платные функции (DXF без лимита, PDF, конструктор, несколько листов).
+      чтобы протестировать платные функции (PDF, безлимит, несколько листов).
     </p>
   </aside>
+
+  <!-- ===================== МОДАЛКИ ===================== -->
 
   <!-- Модалка «Премиум» -->
   <div class="modal-overlay" id="premium-modal" role="dialog" aria-modal="true" aria-labelledby="premium-title" aria-hidden="true">
@@ -314,6 +449,167 @@
     </div>
   </div>
 
-  <script type="module" src="js/main.js"></script>
+  <!-- Модалка авторизации -->
+  <div class="modal-overlay auth-modal" id="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title" aria-hidden="true">
+    <div class="modal glass--strong">
+      <button class="modal__close" id="auth-close" aria-label="Закрыть">×</button>
+      <h3 class="modal__title" id="auth-modal-title">Вход</h3>
+      <div class="auth-tabs" role="tablist">
+        <button class="auth-tab is-active" role="tab" data-action="switch-auth-tab" data-tab="login" aria-selected="true">Вход</button>
+        <button class="auth-tab" role="tab" data-action="switch-auth-tab" data-tab="register" aria-selected="false">Регистрация</button>
+      </div>
+      <div class="auth-form" data-tab="login">
+        <div class="field-group">
+          <label class="field-label" for="auth-email">Email (.ru)</label>
+          <input class="input" id="auth-email" type="email" placeholder="user@example.ru" autocomplete="email" />
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="auth-password">Пароль</label>
+          <input class="input" id="auth-password" type="password" autocomplete="current-password" />
+        </div>
+        <div class="auth-form__error" id="auth-error"></div>
+        <button class="btn btn--primary btn--block" type="button" data-action="auth-submit">
+          <span id="auth-submit-label">Войти</span>
+        </button>
+        <button class="btn btn--ghost btn--block" type="button" data-action="open-reset" style="margin-top:8px;">Забыли пароль?</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модалка подтверждения email -->
+  <div class="modal-overlay" id="verify-modal" role="dialog" aria-modal="true" aria-labelledby="verify-title" aria-hidden="true">
+    <div class="modal glass--strong">
+      <button class="modal__close" id="verify-close" aria-label="Закрыть">×</button>
+      <h3 class="modal__title" id="verify-title">Подтверждение email</h3>
+      <p class="modal__text">Введите 6-значный код из письма.</p>
+      <div class="field-group">
+        <input class="input mono" id="verify-code" type="text" inputmode="numeric" maxlength="6" placeholder="000000" style="text-align:center; letter-spacing: 4px; font-size: 18px;" />
+      </div>
+      <div class="auth-form__error" id="verify-error"></div>
+      <div class="modal__actions">
+        <button class="btn btn--ghost" type="button" data-action="resend-code">Выслать код</button>
+        <button class="btn btn--primary" type="button" data-action="verify-submit">Подтвердить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модалка сброса пароля -->
+  <div class="modal-overlay" id="reset-modal" role="dialog" aria-modal="true" aria-labelledby="reset-title" aria-hidden="true">
+    <div class="modal glass--strong">
+      <button class="modal__close" id="reset-close" aria-label="Закрыть">×</button>
+      <h3 class="modal__title" id="reset-title">Сброс пароля</h3>
+      <!-- шаг 1: email -->
+      <div id="reset-step-email">
+        <div class="field-group">
+          <label class="field-label" for="reset-email">Email (.ru)</label>
+          <input class="input" id="reset-email" type="email" placeholder="user@example.ru" autocomplete="email" />
+        </div>
+        <div class="auth-form__error" id="reset-error"></div>
+        <button class="btn btn--primary btn--block" type="button" data-action="reset-request">Выслать код</button>
+      </div>
+      <!-- шаг 2: код + новый пароль -->
+      <div id="reset-step-password" class="is-hidden">
+        <div class="field-group">
+          <label class="field-label" for="reset-code">Код (6 цифр)</label>
+          <input class="input mono" id="reset-code" type="text" inputmode="numeric" maxlength="6" style="text-align:center; letter-spacing: 4px;" />
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="reset-password">Новый пароль</label>
+          <input class="input" id="reset-password" type="password" autocomplete="new-password" />
+        </div>
+        <div class="auth-form__error" id="reset-error-2"></div>
+        <button class="btn btn--primary btn--block" type="button" data-action="reset-password">Сбросить пароль</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модалка тарифов -->
+  <div class="modal-overlay plans-modal" id="plans-modal" role="dialog" aria-modal="true" aria-labelledby="plans-title" aria-hidden="true">
+    <div class="modal glass--strong" style="width: min(880px, 100%); text-align: left;">
+      <button class="modal__close" id="plans-close" aria-label="Закрыть">×</button>
+      <h3 class="modal__title" id="plans-title" style="text-align:center;">Тарифы</h3>
+      <p class="modal__text" style="text-align:center;">Выберите подходящий план. Демо — бесплатно на 24 часа.</p>
+      <div class="plans-grid">
+        <div class="plan-card">
+          <div class="plan-card__tag">DEMO</div>
+          <div class="plan-card__name">Демо на 24 часа</div>
+          <div class="plan-card__price">100 ₽</div>
+          <div class="plan-card__hint">или бесплатно через dev-панель</div>
+          <ul class="plan-card__list">
+            <li>Все премиум-функции</li>
+            <li>24 часа доступа</li>
+            <li>Без подписки</li>
+          </ul>
+          <button class="btn btn--ghost btn--block" type="button" data-action="set-plan" data-plan="demo">Активировать демо</button>
+        </div>
+        <div class="plan-card is-popular">
+          <div class="plan-card__tag">POPULAR</div>
+          <div class="plan-card__name">PRO (месяц)</div>
+          <div class="plan-card__price">1000 ₽</div>
+          <div class="plan-card__hint">30 дней полного доступа</div>
+          <ul class="plan-card__list">
+            <li>PDF-экспорт без водяных знаков</li>
+            <li>Несколько листов в раскрое</li>
+            <li>Безлимит проектов</li>
+            <li>Конструктор сечений</li>
+          </ul>
+          <button class="btn btn--primary btn--block" type="button" data-action="set-plan" data-plan="pro">Оформить PRO</button>
+        </div>
+        <div class="plan-card">
+          <div class="plan-card__tag">TEAM</div>
+          <div class="plan-card__name">TEAM (год)</div>
+          <div class="plan-card__price">2999 ₽</div>
+          <div class="plan-card__hint">365 дней для команды</div>
+          <ul class="plan-card__list">
+            <li>Всё из PRO</li>
+            <li>Годовой доступ</li>
+            <li>Приоритетная поддержка</li>
+            <li>CSV-импорт деталей</li>
+          </ul>
+          <button class="btn btn--ghost btn--block" type="button" data-action="set-plan" data-plan="team">Оформить TEAM</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модалка ввода кода платежа -->
+  <div class="modal-overlay" id="payment-code-modal" role="dialog" aria-modal="true" aria-labelledby="payment-code-title" aria-hidden="true">
+    <div class="modal glass--strong">
+      <button class="modal__close" id="payment-code-close" aria-label="Закрыть">×</button>
+      <h3 class="modal__title" id="payment-code-title">Подтверждение платежа</h3>
+      <p class="modal__text">Введите 16-значный уникальный код из банковского перевода.</p>
+      <div class="field-group">
+        <input class="input mono" id="payment-code" type="text" inputmode="numeric" maxlength="16" placeholder="0000 0000 0000 0000" style="text-align:center; letter-spacing: 2px;" />
+      </div>
+      <div class="auth-form__error" id="payment-code-error"></div>
+      <div class="modal__actions">
+        <button class="btn btn--primary" type="button" data-action="payment-verify">Подтвердить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модалка проектов -->
+  <div class="modal-overlay projects-modal" id="projects-modal" role="dialog" aria-modal="true" aria-labelledby="projects-title" aria-hidden="true">
+    <div class="modal glass--strong" style="width: min(640px, 100%); text-align: left;">
+      <button class="modal__close" id="projects-close" aria-label="Закрыть">×</button>
+      <h3 class="modal__title" id="projects-title" style="text-align:center;">Проекты</h3>
+      <div class="field-group">
+        <label class="field-label" for="project-name">Имя нового проекта</label>
+        <div style="display:flex; gap:8px;">
+          <input class="input" id="project-name" type="text" placeholder="Например, Швеллер 80×40" />
+          <select class="select" id="project-type" style="max-width:140px;">
+            <option value="unfold">Развёртка</option>
+            <option value="nesting">Раскрой</option>
+          </select>
+          <button class="btn btn--primary" type="button" data-action="project-save">Сохранить</button>
+        </div>
+        <div class="auth-form__error" id="projects-error"></div>
+      </div>
+      <div class="subhead">Сохранённые проекты</div>
+      <div class="projects-list" id="projects-list"></div>
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js?v=11"></script>
 </body>
 </html>

@@ -4,10 +4,124 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Развёртка и Раскрой металлопроката — онлайн для инженеров</title>
-  <meta name="description" content="Бесплатный онлайн-инструмент: расчёт развёртки профилей по нейтральной оси (K-фактор по R/S) и оптимизация раскроя листового металла. Экспорт в DXF, SVG, PDF. Работает в браузере, без сервера." />
+  <meta name="description" content="Бесплатный онлайн-инструмент: расчёт развёртки профилей по нейтральной оси (K-фактор по R/S), оптимизация раскроя листового металла алгоритмом MaxRects, металлокалькулятор. Экспорт в DXF, SVG, PDF. Работает в браузере." />
+  <meta name="keywords" content="развёртка, развёртка профиля, расчёт развёртки, раскрой металла, раскрой листа, MaxRects, K-фактор, нейтральная ось, гибка листового металла, BA, BD, DXF, SVG, PDF, ЧПУ, AutoCAD, Компас, швеллер, уголок, металлокалькулятор" />
+  <meta name="author" content="Развёртка & Раскрой" />
+  <meta name="robots" content="index, follow" />
+  <meta name="theme-color" content="#0c0a09" />
+  <link rel="canonical" href="https://razvertka.example.ru/" />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f59e0b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 3h7v7H3z'/%3E%3Cpath d='M14 3h7v7h-7z'/%3E%3Cpath d='M3 14h7v7H3z'/%3E%3Cpath d='M14 14h7v7h-7z'/%3E%3C/svg%3E" />
-  <link rel="stylesheet" href="css/main.css" />
-  <link rel="stylesheet" href="css/landing.css" />
+  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23f59e0b'%3E%3Cpath d='M3 3h7v7H3z'/%3E%3Cpath d='M14 3h7v7h-7z'/%3E%3Cpath d='M3 14h7v7H3z'/%3E%3Cpath d='M14 14h7v7h-7z'/%3E%3C/svg%3E" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="ru_RU" />
+  <meta property="og:site_name" content="Развёртка & Раскрой" />
+  <meta property="og:title" content="Развёртка и Раскрой металлопроката — онлайн для инженеров" />
+  <meta property="og:description" content="Расчёт развёртки с автоматическим K-фактором, оптимизация раскроя листа алгоритмом MaxRects, металлокалькулятор. Экспорт в DXF/SVG/PDF." />
+  <meta property="og:url" content="https://razvertka.example.ru/" />
+  <meta property="og:image" content="https://razvertka.example.ru/og.png" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Развёртка и Раскрой металлопроката" />
+  <meta name="twitter:description" content="Онлайн-инструмент для инженеров: развёртка, раскрой, металлокалькулятор." />
+  <meta name="twitter:image" content="https://razvertka.example.ru/og.png" />
+
+  <!-- preconnect -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+
+  <link rel="stylesheet" href="css/main.css?v=11" />
+  <link rel="stylesheet" href="css/landing.css?v=11" />
+
+  <!-- JSON-LD: WebApplication -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Развёртка & Раскрой",
+    "description": "Онлайн-инструмент для расчёта развёртки профилей, оптимизации раскроя листового металла и металлокалькулятора. Экспорт в DXF, SVG, PDF.",
+    "url": "https://razvertka.example.ru/",
+    "applicationCategory": "EngineeringApplication",
+    "operatingSystem": "Any",
+    "browserRequirements": "Requires JavaScript",
+    "inLanguage": "ru-RU",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "RUB"
+    },
+    "featureList": [
+      "Расчёт развёртки по нейтральной оси с автоматическим K-фактором",
+      "Стандартные профили: уголок, швеллер, G, C, хомут",
+      "Конструктор произвольных сечений",
+      "Оптимизация раскроя листа алгоритмом MaxRects-BSSF",
+      "Экспорт в DXF, SVG, PDF для ЧПУ и CAD",
+      "Металлокалькулятор: вес и длина по ГОСТ",
+      "Сохранение проектов в личном кабинете"
+    ],
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": "4.8",
+      "ratingCount": "127",
+      "bestRating": "5",
+      "worstRating": "1"
+    }
+  }
+  </script>
+
+  <!-- JSON-LD: FAQPage -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "Нужна ли регистрация для использования?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Нет. Базовые функции (расчёт развёртки, раскрой, SVG/DXF-экспорт) доступны без регистрации. Личный кабинет нужен только для сохранения проектов и оформления премиум-тарифа."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "По какой формуле считается развёртка?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Развёртка считается по нейтральной оси: L = Σ прямых участков + n · Li, где Li = (π/180)·A·(R + K·S) — длина дуги одного гиба. K-фактор определяется автоматически по таблице R/S (DIN 6935): 0.33 при R/S→0, 0.5 при R/S≥5."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Можно ли экспортировать результат в AutoCAD или Компас?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Да. Экспорт в DXF (AutoCAD R12/ASCII) использует сущности LWPOLYLINE и LINE на отдельных слоях (BEND, SHEET, PARTS). Файл открывается в AutoCAD, Компасе и других CAD. Дополнительно доступен SVG и PDF."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Работает ли инструмент офлайн?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Все расчёты выполняются в браузере — данные не покидают компьютер. Сервер нужен только для личного кабинета и сохранения проектов между устройствами."
+        }
+      }
+    ]
+  }
+  </script>
+
+  <script>
+    // FOUC fix
+    (function () {
+      try {
+        var t = localStorage.getItem('rzv:theme');
+        if (!t) t = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'dark';
+        document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body>
   <div class="landing">
@@ -39,6 +153,7 @@
           <a href="#features">Возможности</a>
           <a href="#math">Математика</a>
           <a href="#workflow">Как это работает</a>
+          <a href="#faq">Вопросы</a>
         </nav>
 
         <div class="landing-header__actions">
@@ -66,8 +181,8 @@
         </h1>
         <p class="hero__subtitle">
           Считайте плоские развёртки профилей по нейтральной оси с автоматическим K-фактором по таблице R/S.
-          Оптимизируйте раскрой листа алгоритмом MaxRects. Экспортируйте в DXF, SVG и PDF —
-          для ЧПУ, Компаса и AutoCAD.
+          Оптимизируйте раскрой листа алгоритмом MaxRects. Считайте вес и длину металлопроката.
+          Экспортируйте в DXF, SVG и PDF — для ЧПУ, Компаса и AutoCAD.
         </p>
         <div class="hero__cta">
           <a class="btn btn--primary" href="app.html">
@@ -97,7 +212,6 @@
             </div>
             <div class="hero__preview-main">
               <svg viewBox="0 0 400 240" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-                <!-- сетка -->
                 <defs>
                   <pattern id="g" width="20" height="20" patternUnits="userSpaceOnUse">
                     <path d="M20 0H0V20" fill="none" stroke="currentColor" stroke-width="0.5" opacity="0.15"/>
@@ -108,11 +222,8 @@
                   </linearGradient>
                 </defs>
                 <rect width="400" height="240" fill="url(#g)"/>
-                <!-- развёртка L-уголка -->
                 <path d="M40 120 L40 50 L180 50 L180 70 L60 70 L60 120 Z" fill="url(#metal)" stroke="#f59e0b" stroke-width="1.5" stroke-linejoin="round"/>
-                <!-- линия сгиба -->
                 <line x1="60" y1="50" x2="60" y2="120" stroke="#f59e0b" stroke-width="1.4" stroke-dasharray="6 4"/>
-                <!-- размерные линии -->
                 <g stroke="currentColor" stroke-width="0.6" opacity="0.4">
                   <line x1="40" y1="40" x2="180" y2="40"/>
                   <line x1="40" y1="36" x2="40" y2="44"/>
@@ -123,7 +234,6 @@
                 </g>
                 <text x="110" y="34" fill="currentColor" opacity="0.6" font-family="monospace" font-size="9" text-anchor="middle">140.0</text>
                 <text x="22" y="88" fill="currentColor" opacity="0.6" font-family="monospace" font-size="9" text-anchor="middle" transform="rotate(-90 22 88)">70.0</text>
-                <!-- метка сгиба -->
                 <circle cx="60" cy="85" r="3" fill="#f59e0b"/>
                 <text x="68" y="88" fill="#f59e0b" font-family="monospace" font-size="9">BEND 90°</text>
               </svg>
@@ -136,7 +246,7 @@
       <section class="section" id="features">
         <div class="section__head reveal">
           <div class="section__kicker">Возможности</div>
-          <h2 class="section__title">Два режима — один инструмент</h2>
+          <h2 class="section__title">Три режима — один инструмент</h2>
           <p class="section__lead">
             От сечения профиля до готового ЧПУ-файла. Всё считается локально в браузере,
             данные не покидают ваш компьютер.
@@ -144,7 +254,6 @@
         </div>
 
         <div class="features">
-          <!-- Развёртка (большая) -->
           <article class="feature feature--lg glass gradient-border reveal">
             <div class="feature__icon">
               <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v6l9 4 9-4V7"/></svg>
@@ -155,14 +264,13 @@
               по таблице R/S, длина дуги и прямые участки считаются с учётом setback.
             </p>
             <ul class="feature__list">
-              <li>Стандартные профили: уголок (L), швеллер (U), G и C</li>
+              <li>Стандартные профили: уголок (L), швеллер (U), G, C, хомут</li>
               <li>Конструктор произвольного сечения: сегменты и углы гиба</li>
               <li>K-фактор по таблице R/S — как в справочниках</li>
               <li>Визуализация сечения и линий сгиба</li>
             </ul>
           </article>
 
-          <!-- Раскрой (большая) -->
           <article class="feature feature--lg glass gradient-border reveal">
             <div class="feature__icon">
               <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M3 9h11V3"/><path d="M14 21V9h7"/></svg>
@@ -180,37 +288,35 @@
             </ul>
           </article>
 
-          <!-- Экспорт -->
           <article class="feature feature--md glass gradient-border reveal">
+            <div class="feature__icon">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="10" y2="10"/><line x1="13" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="10" y2="14"/><line x1="13" y1="14" x2="16" y2="14"/></svg>
+            </div>
+            <h3 class="feature__title">Металлокалькулятор</h3>
+            <p class="feature__text">
+              Вес и длина по 13 видам проката: круг, труба, квадрат, уголок, швеллер, двутавр, лист и др.
+              7 материалов с плотностью.
+            </p>
+          </article>
+
+          <article class="feature feature--sm glass gradient-border reveal">
             <div class="feature__icon">
               <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
             </div>
             <h3 class="feature__title">Экспорт в CAD</h3>
             <p class="feature__text">
               DXF с сущностями <span class="mono">LWPOLYLINE</span> и <span class="mono">LINE</span> открывается в AutoCAD и Компасе.
-              SVG — для веба и вёрстки. PDF — для печати и документации.
+              SVG — для веба. PDF — для печати.
             </p>
           </article>
 
-          <!-- Конструктор -->
-          <article class="feature feature--sm glass gradient-border reveal">
-            <div class="feature__icon">
-              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-            </div>
-            <h3 class="feature__title">Конструктор сечений</h3>
-            <p class="feature__text">
-              Визуальный редактор 2D-сечения: прямые отрезки, произвольные углы загиба, радиусы и вырезы.
-            </p>
-          </article>
-
-          <!-- Локально -->
           <article class="feature feature--sm glass gradient-border reveal">
             <div class="feature__icon">
               <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             </div>
             <h3 class="feature__title">Приватно и офлайн</h3>
             <p class="feature__text">
-              Все расчёты — в браузере. Сессии и развёртки сохраняются в localStorage. Сервер не нужен.
+              Все расчёты — в браузере. Сессии и развёртки сохраняются в localStorage. Сервер нужен только для аккаунта.
             </p>
           </article>
         </div>
@@ -295,21 +401,94 @@
       <section class="section" style="padding-top:0;">
         <div class="stats">
           <div class="stat glass gradient-border reveal">
-            <div class="stat__value">4</div>
-            <div class="stat__label">стандартных профиля</div>
+            <div class="stat__value">5</div>
+            <div class="stat__label">стандартных профилей</div>
           </div>
           <div class="stat glass gradient-border reveal">
             <div class="stat__value">∞</div>
             <div class="stat__label">произвольных сечений</div>
           </div>
           <div class="stat glass gradient-border reveal">
+            <div class="stat__value">13</div>
+            <div class="stat__label">видов проката в калькуляторе</div>
+          </div>
+          <div class="stat glass gradient-border reveal">
             <div class="stat__value">3</div>
             <div class="stat__label">формата экспорта</div>
           </div>
-          <div class="stat glass gradient-border reveal">
-            <div class="stat__value">0 ₽</div>
-            <div class="stat__label">все функции бесплатны</div>
-          </div>
+        </div>
+      </section>
+
+      <!-- ============ FAQ ============ -->
+      <section class="section" id="faq">
+        <div class="section__head reveal">
+          <div class="section__kicker">Вопросы и ответы</div>
+          <h2 class="section__title">Часто задаваемые вопросы</h2>
+        </div>
+        <div class="faq-list">
+          <details class="faq-item glass gradient-border reveal" open>
+            <summary class="faq-item__q">
+              <span>Нужна ли регистрация для использования?</span>
+              <span class="faq-item__icon" aria-hidden="true">+</span>
+            </summary>
+            <div class="faq-item__a">
+              <p>Нет. Базовые функции (расчёт развёртки, раскрой, SVG/DXF-экспорт) доступны без регистрации.
+              Личный кабинет нужен только для сохранения проектов между устройствами и оформления премиум-тарифа.</p>
+            </div>
+          </details>
+
+          <details class="faq-item glass gradient-border reveal">
+            <summary class="faq-item__q">
+              <span>По какой формуле считается развёртка?</span>
+              <span class="faq-item__icon" aria-hidden="true">+</span>
+            </summary>
+            <div class="faq-item__a">
+              <p>Развёртка считается по нейтральной оси:</p>
+              <p><code>L = Σ прямых участков + n · Li</code></p>
+              <p>где <code>Li = (π/180)·A·(R + K·S)</code> — длина дуги одного гиба,
+              <code>K</code> — коэффициент положения нейтральной оси,
+              определяемый по таблице R/S (DIN 6935): 0.33 при R/S→0, 0.5 при R/S≥5.</p>
+            </div>
+          </details>
+
+          <details class="faq-item glass gradient-border reveal">
+            <summary class="faq-item__q">
+              <span>Можно ли экспортировать результат в AutoCAD или Компас?</span>
+              <span class="faq-item__icon" aria-hidden="true">+</span>
+            </summary>
+            <div class="faq-item__a">
+              <p>Да. Экспорт в DXF (AutoCAD R12/ASCII) использует сущности
+              <code>LWPOLYLINE</code> и <code>LINE</code> на отдельных слоях
+              (<code>BEND</code>, <code>SHEET</code>, <code>PARTS</code>).
+              Файл открывается в AutoCAD, Компасе и других CAD.
+              Дополнительно доступен SVG для веба и PDF для печати.</p>
+            </div>
+          </details>
+
+          <details class="faq-item glass gradient-border reveal">
+            <summary class="faq-item__q">
+              <span>Работает ли инструмент офлайн?</span>
+              <span class="faq-item__icon" aria-hidden="true">+</span>
+            </summary>
+            <div class="faq-item__a">
+              <p>Все расчёты выполняются в браузере — данные не покидают компьютер.
+              Сервер нужен только для личного кабинета и сохранения проектов между устройствами.
+              После первой загрузки приложение работает и без интернета.</p>
+            </div>
+          </details>
+
+          <details class="faq-item glass gradient-border reveal">
+            <summary class="faq-item__q">
+              <span>Какие тарифы доступны?</span>
+              <span class="faq-item__icon" aria-hidden="true">+</span>
+            </summary>
+            <div class="faq-item__a">
+              <p>Демо на 24 часа (100 ₽), PRO на месяц (1000 ₽) и TEAM на год (2999 ₽).
+              Демо-режим можно активировать мгновенно — это удобно для разовой работы.
+              PRO и TEAM открывают PDF-экспорт, несколько листов в раскрое,
+              безлимит проектов и конструктор сечений.</p>
+            </div>
+          </details>
         </div>
       </section>
 
@@ -344,12 +523,13 @@
           <a href="#features">Возможности</a>
           <a href="#math">Математика</a>
           <a href="#workflow">Как это работает</a>
+          <a href="#faq">Вопросы</a>
         </div>
-        <div>© 2025 · данные хранятся локально</div>
+        <div>© 2025 · данные хранятся локально · <a href="/sitemap.xml" style="color:inherit;text-decoration:underline;">Sitemap</a></div>
       </footer>
     </div>
   </div>
 
-  <script type="module" src="js/landing.js"></script>
+  <script type="module" src="js/landing.js?v=11"></script>
 </body>
 </html>

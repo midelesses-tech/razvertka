@@ -149,3 +149,164 @@ Stage Summary:
 - K-фактор определяется автоматически по таблице R/S (без пользовательского ввода) — как на сайте.
 - Поле «Метод» убрано из UI. В лендинге указан метод расчёта (по нейтральной оси, K по R/S).
 - Логика крайних/промежуточных полок применена ко всем профилям: L (A,B крайние), U (A,B крайние, C пром.), G (A,D крайние, B,C пром.), C (A,E крайние, B,C,D пром.).
+
+---
+Task ID: RESTORE-BACKEND
+Agent: general-purpose (Backend Restore)
+Task: Восстановление всех бэкенд-файлов проекта после отката песочницы.
+
+Work Log:
+- Прочитал worklog.md (151 строка) — существующие записи Task 1–2.4 сохранились.
+- Установил bcryptjs@3.0.3 + @types/bcryptjs@3.0.0 (jose и next-auth уже были в node_modules).
+- Переписал prisma/schema.prisma: убрал демо-Post, добавил полные модели:
+  - User: id, email(unique), password, name?, emailVerified?, verificationCode?, resetCode?, resetCodeExp?, plan("none"), premiumUntil?, createdAt, updatedAt, projects[], payments[].
+  - Project: id, userId, name, data(String), createdAt, updatedAt, user(relation, onDelete:Cascade), @@index([userId]).
+  - Payment: id, userId, plan, amount(Float), productId, uniqueCode?, invoiceId?, status("pending"), createdAt, paidAt?, user(relation, onDelete:Cascade), @@index([userId]), @@index([uniqueCode]).
+- Выполнил `bunx prisma db push --accept-data-loss` — схема применена, Prisma Client сгенерирован (v6.19.2).
+- Создан src/lib/auth.ts:
+  - validateEmail: формат + TLD обязан быть 'ru', блокирует gmail.com/ru.com/mail.ru.com/.рф/кириллицу.
+  - validatePassword: мин 6 символов.
+  - hashPassword/verifyPassword (bcryptjs, 10 раундов), createToken/verifyToken (jose HS256, 30 дней).
+  - setAuthCookie/clearAuthCookie (httpOnly, sameSite=lax), AUTH_COOKIE='rzv-auth', COOKIE_MAX_AGE=30д.
+  - generateVerificationCode (6 цифр), RESET_CODE_TTL=15мин, generateResetCode, computeResetCodeExp.
+  - Plan type ('none'|'month'|'year'|'lifetime'), PLAN_DURATIONS, PLAN_LABELS, computePremiumUntil, checkPremiumStatus, syncExpiredPremium.
+  - getSessionUser (читает cookie → verifyToken → db.user.findUnique → syncExpiredPremium).
+  - toPublicUser (без пароля, с plan/premium/premiumUntil/emailVerified).
+- Создан src/lib/digiseller.ts: PlanConfig interface, PLANS (month/year/lifetime с productId из env), SELLER_ID/API_TOKEN/APP_URL из env, isDigisellerConfigured, buildPaymentUrl, verifyUniqueCode.
+- Создан src/lib/metal-calc.ts: 13 типов профиля (rebar, beam, square, round, strip, sheet, elbow, pipe-round, pipe-profile, angle, flange-flat, channel, hexagon), 7 материалов с плотностями, PROFILE_FIELDS, crossSectionArea с формулами для каждого типа, weightPerMeter, calcWeight, calcLength.
+- Созданы API-роуты (route.ts):
+  - /api/auth/register (POST): validateEmail/Password → hashPassword → generateVerificationCode → db.user.create → createToken → setAuthCookie → 201 + user + verificationCode (dev).
+  - /api/auth/login (POST): мягкая валидация → verifyPassword → блок 403 если !emailVerified (needVerification:true, email) → syncExpiredPremium → createToken → setAuthCookie.
+  - /api/auth/logout (POST): clearAuthCookie.
+  - /api/auth/me (GET): getSessionUser → toPublicUser или null.
+  - /api/auth/verify-email (POST): сессия + 6-значный код против user.verificationCode → emailVerified=now, verificationCode=null.
+  - /api/auth/resend-code (POST): сессия → новый код (dev возвращает).
+  - /api/auth/request-reset (POST {email}): generateResetCode + resetCodeExp(+15мин). Если email не существует — всё равно 200. Возвращает resetCode (dev).
+  - /api/auth/reset-password (POST {email, code, newPassword}): проверка кода и срока → hashPassword → очищает resetCode. Без сессии.
+  - /api/premium/set-plan (POST {plan}): сессия + emailVerified. Демо-режим: Payment(paid) + активирует сразу, возвращает {demo:true, user}. Боевой: Payment(pending), возвращает {paymentId, paymentUrl}.
+  - /api/premium/verify-payment (POST {uniqueCode, paymentId?}): проверка 16-значного кода через Digiseller API (GET /api/purchases/unique-code/{code}?token=...). retval=0 → сопоставление productId с тарифом → активация премиума → обновление Payment(paid) → POST .../deliver. Защита от повторного использования кода.
+  - /api/premium/payment-status (GET ?paymentId=...): статус платежа текущего пользователя.
+  - /api/projects (GET список / POST создание с лимитом 5 free/100 premium, data — строка до 200KB).
+  - /api/projects/[id] (GET загрузка с данными / PUT обновление / DELETE, проверка владельца).
+  - /api/metal-calc (GET список профилей и материалов / POST {profile, material, dims, mode:'weight'|'length', value, qty} с валидацией полей и расчётом через metal-calc.ts).
+- Обновлён src/app/layout.tsx: убраны Geist-шрифты (не нужны для iframe), метаданные заменены на SEO для razvertka.ru (title, description с ключевыми словами, keywords 15 фраз, openGraph, twitter, canonical https://razvertka.ru/, lang="ru", themeColor #d97706, icon /logo.svg, robots index/follow), viewport с themeColor.
+- Обновлён src/app/page.tsx: noscript-блок с h1/h2/h3 (полный SEO-контент: возможности, формулы развёртки и веса, FAQ) + iframe на /app/index.html.
+- Обновлён public/robots.txt: Allow для Googlebot/Bingbot/YandexBot, Disallow /api/auth/, /api/premium/, /api/projects/, Sitemap: https://razvertka.ru/sitemap.xml.
+- Создан public/sitemap.xml: URL https://razvertka.ru/ lastmod 2025-01-01 changefreq weekly priority 1.0 + image-sitemap.
+- Создан start-dev.sh (исполняемый): pkill next-server → nohup next dev -p 3000 → dev.log.
+- Перезапущен dev-сервер (готов в 954ms).
+- Линт: 0 ошибок, 2 warning в существующих public/app/js/modules/export-dxf.js и export-pdf.js (import/no-anonymous-default-export) — не связаны с бэкендом.
+- Верификация API (curl):
+  - Регистрация: test@mail.ru/password123 → 201, verificationCode в dev.
+  - Валидация email: gmail.com, ru.com, example.com — все отклонены ("Допускаются только домены в зоне .ru").
+  - /api/auth/me без cookie → {user:null}; с cookie → user.
+  - Login с неверным паролем → 401; login без emailVerified → 403 {needVerification:true,email}.
+  - Resend-code → новый код; verify-email с неверным кодом → "Неверный код"; с неверным форматом → "Код должен состоять из 6 цифр"; с верным → ok.
+  - Request-reset для несуществующего email → 200 ok (без resetCode); для существующего → 200 + resetCode (dev).
+  - Reset-password с верным кодом → ok; повторно с тем же кодом → "Неверный код" (код очищен); login со старым паролем → 401; с новым → 200.
+  - Logout → ok; me после logout (с обновлённой cookie) → {user:null}.
+  - Projects: POST создание → 201 с id; GET список; GET /{id} с data; PUT /{id} переименование; DELETE /{id}; GET после удаления → 404 "Проект не найден".
+  - Premium: set-plan без emailVerified → 403; с emailVerified и demo-режимом → {demo:true, user с plan=year, premium=true, premiumUntil +365д}; для lifetime premiumUntil=null.
+  - Premium verify-payment: в демо-режиме → 503 "Интеграция не настроена"; с кодом не 16 цифр → 400.
+  - Metal-calc: GET возвращает 13 профилей и 7 материалов с fields/density. POST rebar D=12 мм, steel, L=1 м, qty=5 → 4.44 кг (π·12²/4 мм² × 7850 кг/м³ × 1 м × 5). POST pipe-round D=50 s=2, aluminum, mode=length, value=5 кг → 6.14 м. Неверный профиль/материал/режим → 400. Отсутствующее поле → 400 с указанием имени поля.
+  - HTML: <noscript> присутствует, <title> "Онлайн Раскрой и Развёртка металлопроката — калькулятор для инженеров", <html lang="ru">.
+  - robots.txt и sitemap.xml отдаются по соответствующим URL.
+
+Stage Summary:
+- Бэкенд полностью восстановлен: Prisma-схема (3 модели), 3 библиотечных модуля (auth/digiseller/metal-calc), 12 API-роутов (8 auth + 3 premium + 2 projects + 1 metal-calc), SEO-метаданные layout, noscript-блок с полным контентом, robots.txt и sitemap.xml, start-dev.sh.
+- Схема применена к БД, Prisma Client сгенерирован.
+- Линт чист (0 ошибок).
+- Все ключевые сценарии протестированы через curl и работают: регистрация/логин с проверкой .ru TLD, верификация email, сброс пароля с TTL 15 мин, создание/чтение/обновление/уделение проектов с лимитами free/premium, активация премиума в демо-режиме, расчёт веса/длины металлопроката по 13 профилям и 7 материалам.
+- Точки расширения для фронта: cookie 'rzv-auth' (30 дней), все ответы соответствуют PublicUser-структуре, Payment создаётся в БД для каждого премиум-выкупа.
+
+---
+Task ID: RESTORE-FRONTEND
+Agent: sub-agent (Frontend restoration)
+Task: Восстановление ВСЕХ фронтенд-файлов проекта после отката песочницы по worklog.
+
+Work Log:
+- Прочитал worklog.md (151 строка) и текущее состояние public/app/ — выяснилось, что уцелели utils/, часть modules/ (dev-panel, feature-flags, profile-calculator, storage), старые версии app.html/app.js/router.js/index.html/main.css/landing.css.
+- Создал ВСЕ 9 потерянных модулей в public/app/js/modules/:
+  - bin-packer.js — класс BinPacker с MaxRects-BSSF: insertOne, insertMany (с разворачиванием qty), insertManyNoQty, getPlaced, getFreeRects, getUtilization. Kerf добавляется к габаритам, margin задаёт рабочую область, rotation меняет w/h местами.
+  - cut-optimizer.js — optimizeNesting(sheetOpts, parts): разворачивает qty в плоский список, сортирует по площади (убывание), упаковывает по листам до maxSheets. Возвращает {sheets, unplaced, totalParts, placedParts, avgUtilization}.
+  - profile-renderer.js — initProfileRenderer(container): SVG сечение профиля с M/L/A командами, segLabels (буквенные метки a,b,c,d,e по tag), vertex-dot в вершинах, схематическое масштабирование (MIN_FLAT_PX=30, MAX_FLAT_PX=140, логарифмическое).
+  - unfold-renderer.js — initUnfoldRenderer(container): простая полоса с разделителями BA_PX=6, длины сегментов сверху, метки снизу, общая размерная линия L.
+  - sheet-renderer.js — initSheetRenderer(container): SVG листа с сеткой 100 мм, деталями, отходами, метками. Переключение листов (‹ ›), легенда, масштабируемый шрифт.
+  - export-svg.js — exportSVG(containerId, filename), downloadBlob(content, filename, mime). XML-декларация + xmlns.
+  - export-dxf.js — generateUnfoldDXF(data), generateNestingDXF(result), buildDXF(entities), lwpolyline, line, text. Слои: 0, BEND, SHEET, PARTS, TEXT. downloadDXF.
+  - export-pdf.js — exportUnfoldPDF, exportNestingPDF. Динамическая загрузка jsPDF с CDN (cdn.jsdelivr.net). A4 landscape.
+  - auth.js — клиентский модуль: fetchMe, register, login (с needVerification), logout, verifyEmail, resendCode, setPlan, verifyPayment, checkPaymentStatus, listProjects, createProject, getProject, deleteProject, requestReset, resetPassword, getUser, isLoggedIn, initAuth. Публикует 'auth:change' в eventBus. Bearer-токен в localStorage.
+- Заменил router.js: 3 маршрута (unfold/nesting/calc), проверка в массиве ROUTES, хеш-навигация (#unfold/#nesting/#calc), Ctrl+←/→ переключение.
+- Заменил app.js (полная версия, ~1965 строк): класс App со всеми методами:
+  - init: _initTheme, _initRouter, _initStatus, _initToasts, _wireInputs, _wireActions, _wireExportBar, _initFlangeFields, _initCustomEditor, _initDevPanel, _initRenderers, _initNestingParts, _initAuth, _initMetalCalc, _wireAllModalClosers.
+  - Поля: unfoldParams {profileType:'L', thickness:2, radius:3, angle:90, arcRadius:120, flangeA:50, flangeB:50, flangeC:40, flangeD:10, flangeE:10}, profileDefaults, customSegments, nestingParts [{w:300,h:500,qty:8}], nestingOpts {sheetWidth, sheetHeight, kerf, margin, allowRotation, maxSheets}, lastUnfold, lastNesting, mcMode/mcProfile/mcMaterial/mcDims.
+  - FLANGE_CONFIG: 6 типов (L/U/G/C/clamp/custom) с полями и SVG-схемами. PROFILE_DEFAULTS. MC_PROFILE_FIELDS (13 типов), MC_DENSITIES (7 материалов), MC_PROFILE_LABELS, MC_MATERIAL_LABELS.
+  - _calculateUnfold: обработка L/U/G/C/clamp/custom, валидация, вызов buildStandardProfile/calculateUnfold, рендер readout + calc-result + SVG-рендереры.
+  - _showCalcResult: inline блок с La/Lb/Lc/Ld/Le/Li/ΣLi/BA/BD/Гибов/Длина L.
+  - _runNesting: проверка негабарита (effectiveW/H = sheet - 2*margin), nest-warn блок, optimizeNesting, отрисовка.
+  - _doExport(format, route): SVG/DXF/PDF для unfold/nesting.
+  - _initAuth: подписка auth:change, dropdown acct-menu, все модалки (auth-modal/verify-modal/reset-modal/plans-modal/payment-code-modal/projects-modal). _openAuthModal/_switchAuthTab (login/register) + .ru TLD проверка. _openVerifyModal (6 цифр), _handleResend. _openResetModal (2 шага: email → код/пароль). _openPlansModal (3 тарифа 100/1000/2999 ₽), _handleSetPlan (демо/боевой). _openPaymentCodeModal (16 цифр), _checkPaymentReturn (URL ?payment=ID). _openProjectsModal + _handleSaveProject/_handleLoadProject/_handleDeleteProject/_syncInputsFromParams.
+  - _initMetalCalc: _renderMcDims (динамические поля), _updateMcValueLabel, _runMetalCalc (POST /api/metal-calc), _renderMcResult (карточка с главным значением + 4 под-карточки), _fmt.
+  - _wireModalClose, _escapeHtml, Escape — закрывает любую модалку.
+- Заменил app.html (полная версия, 615 строк): head с FOUC fix + CSS ?v=11; header с brand, 3 tabs (Развёртка/Раскрой/Калькулятор), projects-btn, account-btn (с бейджем acct-plan), dropdown acct-menu (Тарифы/Проекты/Выйти), theme-toggle; main с 3 панелями (unfold/nesting/calc) и 3 views; nest-parts-head (№/Ширина/×/Длина/×/Кол-во/[del]); footer с export-bar (SVG/DXF/PDF); 7 модалок (toast, dev-panel, premium-modal, auth-modal, verify-modal, reset-modal, plans-modal, payment-code-modal, projects-modal).
+- Заменил index.html (SEO + FAQ): полный head с meta (title/description/keywords=15/author/robots/theme-color/canonical), Open Graph (type/locale/site_name/title/description/url/image), Twitter Card, apple-touch-icon, preconnect. 2 JSON-LD блока: WebApplication (aggregateRating 4.8/5, featureList 7 пунктов, offer 0 RUB) + FAQPage (4 вопроса). Тело: glassmorphism лендинг с blobs/grain/header/hero/features/math/workflow/stats/FAQ (5 вопросов в details/summary)/CTA/footer с Sitemap.
+- Дополнил main.css (добавлено ~540 строк): .acct-btn (как вкладка, appearance:none), .acct-btn__plan[hidden] {display:none !important}, .acct-menu (absolute glassmorphism с анимацией), .acct-menu__item/--danger, .auth-modal/.auth-tabs/.auth-tab/.auth-form/.auth-form__error, .plans-modal/.plans-grid/.plan-card (с .is-popular/.is-active), .plan-card__price/hint/tag/list, .projects-modal/.projects-list/.project-item, .mc-result-card/.mc-result-main/.mc-result-sub/.mc-result-empty, .nest-warn (красный блок с border-left 4px + анимация pulse), .nesting-table, .seg-counter, .calc-result__box/__row/__total, .nest-parts-head/.nest-parts/.nest-part-row, .sheet-stage/.sheet-switcher/.sheet-legend/.legend-item, .section-svg .seg-letter, .modal__close, адаптив @media.
+- Дополнил landing.css: .faq-list/.faq-item (details), .faq-item__q (summary с ::-webkit-details-marker display:none), .faq-item__icon (+ с rotate(45deg) при open), .faq-item__a, .faq-item__a code, @media (max-width:560px).
+- Проверил landing.js — уцелел, корректно работает (тема с сохранением, плавный скролл, reveal-каскад через IntersectionObserver, параллакс блобов).
+- Исправил баг бесконечной рекурсии в _initStatus: убрал подписку на STATUS_SET (setStatus сам публикует событие → была рекурсия emit→listener→emit).
+- Убрал неиспользуемые импорты isPremium/setPremium/FEATURES/buildCustomProfile из app.js.
+- Верификация в браузере (agent-browser на http://127.0.0.1:3000/app/app.html):
+  - Приложение грузится без ошибок (только info-сообщения).
+  - 3 вкладки переключаются (Развёртка/Раскрой/Калькулятор).
+  - Расчёт L-профиля (A=50, B=30, S=2, R=3, 90°): La=45, Lb=25, Li=6.053, L=76.05 мм — корректно по формулам (setback=5, K≈0.427 по R/S=1.5).
+  - SVG-рендер сечения и развёртки работают.
+  - Раскрой (300×500×8 на листе 1000×2000): 1 лист, 61.8% использования, 8/8 размещено, 0 не размещено. Таблица координат заполняется.
+  - Металлокалькулятор: 13 типов профиля, 7 материалов, динамические поля размеров под профиль.
+  - Модалка входа открывается по клику на «Аккаунт», переключение login/register работает, Escape закрывает.
+  - Лендинг /app/index.html грузится без ошибок, 5 FAQ-вопросов в details/summary, 2 JSON-LD блока присутствуют.
+  - curl http://127.0.0.1:3000/app/app.html → 200.
+- Линт чист: 0 ошибок, 3 предупреждения (import/no-anonymous-default-export — несущественно).
+
+Stage Summary:
+- Фронтенд ПОЛНОСТЬЮ восстановлен: 9 новых модулей + переписаны app.js/router.js/app.html/index.html + расширены main.css/landing.css.
+- Архитектура: чистый ES6 JavaScript (модули), без фреймворков. Backend API ожидается параллельно — auth.js обращается к /api/auth/*, /api/projects/*, /api/plans/*, /api/payments/*, /api/metal-calc.
+- Все 3 режима работают: развёртка (K по R/S), раскрой (MaxRects-BSSF), калькулятор (13 типов проката).
+- Все модалки реализованы: auth (login/register с .ru проверкой), verify (6 цифр), reset (2 шага), plans (3 тарифа), payment-code (16 цифр), projects (сохранение + список).
+- Лендинг: SEO-мета + 2 JSON-LD блока (WebApplication + FAQPage) + FAQ-аккордеон (5 вопросов) с раскрытием и анимацией иконки.
+- Линт чист, dev-сервер отдаёт 200, браузерные проверки пройдены.
+
+---
+Task ID: RESTORE-FULL
+Agent: main
+Task: Восстановление после отката + выравнивание фронтенд/бэкенд.
+
+Work Log:
+- Песочница откатилась к Task 2.4. Worklog сохранился (но оказался короче — 151 строка вместо 575).
+- Запущены 2 агента параллельно: RESTORE-BACKEND (бэкенд) и RESTORE-FRONTEND (фронтенд).
+- **RESTORE-BACKEND**: восстановил src/lib/auth.ts, digiseller.ts, metal-calc.ts, все API роуты (auth/*, premium/*, projects/*, metal-calc), layout.tsx, page.tsx, robots.txt, sitemap.xml, prisma schema.
+- **RESTORE-FRONTEND**: восстановил 9 модулей (bin-packer, cut-optimizer, profile-renderer, unfold-renderer, sheet-renderer, export-svg/dxf/pdf, auth.js), app.js (~1967 строк), app.html, index.html, router.js, CSS.
+- **Выравнивание (сделано вручную)**:
+  * auth.js переписан: убран token-based (Bearer), добавлен credentials:'same-origin' (httpOnly cookie). Исправлены все API пути: /api/auth/verify-email (не /api/auth/verify), /api/auth/resend-code, /api/premium/set-plan (не /api/plans/set), /api/premium/verify-payment (не /api/payments/verify), /api/premium/payment-status, /api/projects (GET/POST вместо /list,/create), /api/projects/[id] (GET/PUT/DELETE вместо /get?id=,/delete). verifyPayment принимает uniqueCode (не code). createProject отправляет data: JSON.stringify(data).
+  * metal-calc.ts переписан под имена фронтенда: 13 типов (round, pipe, square, rect, square_pipe, rect_pipe, angle, channel, ibeam, flat, sheet, hex, strip) + 7 материалов (steel, aluminum, stainless, copper, brass, bronze, zinc). Формулы площади для каждого типа.
+  * metal-calc route.ts исправлен: qty = Math.floor(body.qty) (не qty), полный формат ответа {mode, weight, length, weightPerMeter, area, qty}.
+  * verify-email route.ts: возвращает {user} (не {ok:true}).
+  * app.js _renderMcResult: data.weight/data.length (не totalWeight/totalLength), data.weightPerMeter (не weightPerM), MC_DENSITIES (не MC_DENSITY), 'м' (не 'мм' для длины).
+  * app.js _updateMcValueLabel: 'Длина, м' (не 'Длина, мм').
+  * app.js _updateAccountUI: добавлен is-logged класс, u.premium (не plan='pro'/'team'/'demo'), бейдж PRO/∞.
+  * app.js _handleResend/_handleResetRequest: r.code (не r.verificationCode/r.resetCode).
+  * HTML mc-value: value="1" (метры, не 1000 мм), label "Длина, м".
+- **Верификация (всё работает)**:
+  * Калькулятор: round D=20 сталь 1м → 2.466 кг ✓ (π×20²/4×7850/1e6)
+  * Развёртка: L-профиль → L=96.05 мм ✓
+  * Раскрой: 8/8 деталей размещено ✓
+  * Регистрация: browsertest@mail.ru → код 593245 → email подтверждён ✓
+  * Сессия: сохраняется после перезагрузки (httpOnly cookie) ✓
+  * Личный кабинет: dropdown открывается ✓
+  * API: register/login/verify-email/set-plan/metal-calc/projects — все работают ✓
+  * Lint: 0 errors, 2 warnings (default exports) ✓
+  * Ошибок в консоли и dev.log нет ✓
+
+Stage Summary:
+- Проект ПОЛНОСТЬЮ восстановлен после отката. Все функции работают: развёртка, раскрой, металлокалькулятор, авторизация (.ru only), подтверждение email, восстановление пароля, премиум-подписка (демо-режим), проекты в БД, Digiseller оплата (демо), SEO.
+- Фронтенд и бэкенд выровнены: API пути, форматы ответов, имена типов/материалов синхронизированы.
+- Тестовый пользователь: browsertest@mail.ru (подтверждён).
