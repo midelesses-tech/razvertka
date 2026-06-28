@@ -72,8 +72,13 @@ export function optimizeNesting(sheetOpts, parts) {
     }
   }
 
-  // 2. Сортируем по площади (убывание). Крупные первыми.
-  const sorted = flat.slice().sort((a, b) => (b.w * b.h) - (a.w * a.h));
+  // 2. Сортируем: сначала по max(w,h) убывание, потом по площади — для лучшей плотности
+  const sorted = flat.slice().sort((a, b) => {
+    const aMax = Math.max(a.w, a.h);
+    const bMax = Math.max(b.w, b.h);
+    if (bMax !== aMax) return bMax - aMax;
+    return (b.w * b.h) - (a.w * a.h);
+  });
 
   const sheets = [];
   const unplaced = [];
