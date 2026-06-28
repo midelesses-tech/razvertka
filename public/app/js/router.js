@@ -98,7 +98,9 @@ export class Router {
       p.classList.toggle('is-hidden', p.dataset.panel !== this.current);
     });
     this._views.forEach((v) => {
-      v.classList.toggle('is-active', v.dataset.view === this.current);
+      const active = v.dataset.view === this.current;
+      v.classList.toggle('is-active', active);
+      v.classList.toggle('is-hidden', !active);
     });
   }
 

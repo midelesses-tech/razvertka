@@ -179,6 +179,22 @@
                 <input class="input" id="ns-sheet-wid" type="number" min="1" value="1000" data-input="sheet-width" />
               </div>
             </div>
+            <div class="field-row">
+              <div class="field-group">
+                <label class="field-label" for="ns-sheets-max">Листов (max)</label>
+                <div class="select-wrap">
+                  <select class="select" id="ns-sheets-max" data-input="max-sheets">
+                    <option value="1">1 (бесплатно)</option>
+                    <option value="5">5</option>
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                    <option value="100">100 (PRO)</option>
+                  </select>
+                </div>
+                <p class="field-hint" id="ns-sheets-hint">1 лист — бесплатно. Больше — премиум.</p>
+              </div>
+            </div>
 
             <div class="subhead">Детали</div>
             <div class="nest-parts-head">
@@ -349,10 +365,10 @@
             </div>
           </div>
           <div class="view__stage">
-            <div class="stage stage--full" style="flex-direction:column; gap:12px;">
+            <div class="stage stage--full" style="flex-direction:column; gap:8px; min-height:0; overflow:hidden;">
               <div class="nest-warn is-hidden" id="nest-warn" role="alert"></div>
               <div class="stage__label">Лист</div>
-              <div class="stage__canvas" id="stage-sheet" style="flex:1 1 auto;">
+              <div class="stage__canvas" id="stage-sheet" style="flex:1 1 auto; min-height:200px; overflow:auto;">
                 <div class="placeholder"><span>Раскладка появится здесь</span></div>
               </div>
               <table class="nesting-table" id="nesting-table" aria-label="Координаты деталей"></table>
@@ -375,9 +391,9 @@
             </div>
           </div>
           <div class="view__stage">
-            <div class="stage stage--full">
+            <div class="stage stage--full" style="min-height:0; overflow:hidden;">
               <div class="stage__label">Результат</div>
-              <div class="stage__canvas" id="mc-result-stage" style="padding: 16px; display: block; background: var(--surface);">
+              <div class="stage__canvas" id="mc-result-stage" style="padding: 16px; display: block; background: var(--surface); min-height:200px; overflow:auto;">
                 <div class="mc-result-empty">Введите параметры и нажмите «Рассчитать»</div>
               </div>
             </div>

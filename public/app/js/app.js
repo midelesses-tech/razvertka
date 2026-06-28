@@ -203,7 +203,7 @@ export class App {
       kerf: 2,
       margin: 10,
       allowRotation: true,
-      maxSheets: 50,
+      maxSheets: 1, // free = 1, premium = до 100
     };
 
     // Металлокалькулятор
@@ -414,6 +414,22 @@ export class App {
     if (key === 'lock-rotation') {
       // lock-rotation = true → allowRotation = false
       this.nestingOpts.allowRotation = !value;
+    } else if (key === 'max-sheets') {
+      // max-sheets — гейтинг: бесплатно только 1
+      const max = Number(value) || 1;
+      if (max > 1 && !isPremium()) {
+        // Бесплатно — только 1 лист, блокируем выбор большего
+        const sel = document.querySelector('[data-input="max-sheets"]');
+        if (sel) sel.value = '1';
+        this.nestingOpts.maxSheets = 1;
+        showPremiumModal('nestingSheets');
+        const hint = document.getElementById('ns-sheets-hint');
+        if (hint) hint.textContent = '1 лист — бесплатно. Больше — премиум.';
+      } else {
+        this.nestingOpts.maxSheets = max;
+        const hint = document.getElementById('ns-sheets-hint');
+        if (hint) hint.textContent = max > 1 ? `${max} листов (премиум).` : '1 лист — бесплатно. Больше — премиум.';
+      }
     } else if (NEST_MAP[key]) {
       this.nestingOpts[NEST_MAP[key]] = value;
     }

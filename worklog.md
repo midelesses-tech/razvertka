@@ -428,3 +428,19 @@ Stage Summary:
 - **Окна горизонтально**: stage-split теперь правильно ограничен по высоте (311px вместо 1291px), окна бок о бок.
 - **SVG-схемы в sidebar**: обновлены под новые направления профилей. C-профиль = буква С (не Z). Точки в вершинах, буквенные метки.
 - **app-shell fixed height**: height: 100vh + overflow: hidden — страница не растягивается, footer прилипает к низу.
+
+---
+Task ID: UX-FIX-4
+Agent: main
+Task: Визуализации раскроя и калькулятора + ввод количества листов.
+
+Work Log:
+- **Резервное копирование**: создан backup.sh — упаковывает все ключевые файлы в ZIP (152K). Запуск: `bash backup.sh`. Результат: /home/z/my-project/download/project-backup-YYYY-MM-DD-HHMM.zip. Скачивать через панель файлов.
+- **Bug: router не убирал is-hidden**: _apply() добавлял is-active но не убирал is-hidden. Исправлено — теперь toggles оба класса.
+- **Bug: stage__canvas высота 0**: добавлен min-height:200px и overflow:auto для stage-sheet и mc-result-stage. Parent stage: min-height:0, overflow:hidden.
+- **Ввод количества листов**: добавлен select в HTML (1/5/10/20/50/100). Гейтинг: бесплатно только 1, больше — премиум (showPremiumModal). Hint обновляется. nestingOpts.maxSheets по умолчанию 1.
+- **Верификация**:
+  * Раскрой: stage h=200, svg h=151 — визуализация видна ✅
+  * Калькулятор: mc-stage h=290, card h=304 — карточка видна ✅
+  * VLM подтвердил обе визуализации ✅
+  * Lint чист ✅
