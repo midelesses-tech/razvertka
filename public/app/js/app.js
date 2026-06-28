@@ -514,39 +514,55 @@ export class App {
     const fill = 'var(--accent-soft)';
     const txtAcc = 'var(--accent)';
     const fontMono = 'font-family: var(--font-mono); font-size: 11px; font-weight: 700;';
-    const pathAttrs = `fill="${fill}" stroke="${stroke}" stroke-width="2" stroke-linejoin="round"`;
+    const pathAttrs = `fill="none" stroke="${stroke}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"`;
+    const dot = (cx, cy) => `<circle cx="${cx}" cy="${cy}" r="2.5" fill="${stroke}"/>`;
+    const lbl = (x, y, t, rot) => `<text x="${x}" y="${y}" fill="${txtAcc}" style="${fontMono}" text-anchor="middle"${rot ? ` transform="rotate(${rot} ${x} ${y})"` : ''}>${t}</text>`;
 
     switch (schema) {
       case 'L':
+        // L: A→ (вправо), B↑ (вверх) — уголок └
         return `<svg viewBox="0 0 120 120" class="profile-schema">
-          <path d="M20 20 L20 90 L100 90" ${pathAttrs}/>
-          <text x="58" y="108" fill="${txtAcc}" style="${fontMono}" text-anchor="middle">A</text>
-          <text x="8" y="58" fill="${txtAcc}" style="${fontMono}" text-anchor="middle" transform="rotate(-90 8 58)">B</text>
-          <circle cx="20" cy="90" r="3" fill="${stroke}"/>
+          <path d="M15 95 L105 95 L105 20" ${pathAttrs}/>
+          ${dot(105, 95)}
+          ${lbl(60, 110, 'A', 0)}
+          ${lbl(115, 58, 'B', 90)}
         </svg>`;
       case 'U':
+        // U: A↓ (вниз), B→ (вправо), C↑ (вверх) — ⊂
         return `<svg viewBox="0 0 140 110" class="profile-schema">
-          <path d="M20 20 L120 20 L120 90 M20 20 L20 90" ${pathAttrs}/>
-          <text x="70" y="12" fill="${txtAcc}" style="${fontMono}" text-anchor="middle">C (стенка)</text>
-          <text x="12" y="58" fill="${txtAcc}" style="${fontMono}" text-anchor="middle" transform="rotate(-90 12 58)">A</text>
-          <text x="128" y="58" fill="${txtAcc}" style="${fontMono}" text-anchor="middle" transform="rotate(90 128 58)">B</text>
+          <path d="M20 15 L20 90 L120 90 L120 15" ${pathAttrs}/>
+          ${dot(20, 90)}
+          ${dot(120, 90)}
+          ${lbl(12, 52, 'A', -90)}
+          ${lbl(70, 102, 'B', 0)}
+          ${lbl(128, 52, 'C', 90)}
         </svg>`;
       case 'G':
-        return `<svg viewBox="0 0 170 110" class="profile-schema">
-          <path d="M20 90 L20 50 L70 50 L70 20 L150 20" ${pathAttrs}/>
-          <text x="12" y="72" fill="${txtAcc}" style="${fontMono}" text-anchor="middle" transform="rotate(-90 12 72)">A</text>
-          <text x="45" y="44" fill="${txtAcc}" style="${fontMono}" text-anchor="middle">B</text>
-          <text x="110" y="14" fill="${txtAcc}" style="${fontMono}" text-anchor="middle">C</text>
-          <text x="142" y="36" fill="${txtAcc}" style="${fontMono}" text-anchor="middle" transform="rotate(90 142 36)">D</text>
+        // G: A→ (вправо), B↑ (вверх), C← (влево), D↓ (вниз) — G-профиль
+        return `<svg viewBox="0 0 160 120" class="profile-schema">
+          <path d="M15 55 L15 100 L90 100 L90 25 L145 25 L145 60" ${pathAttrs}/>
+          ${dot(15, 100)}
+          ${dot(90, 100)}
+          ${dot(90, 25)}
+          ${dot(145, 25)}
+          ${lbl(8, 78, 'A', -90)}
+          ${lbl(52, 110, 'B', 0)}
+          ${lbl(117, 18, 'C', 0)}
+          ${lbl(153, 42, 'D', 90)}
         </svg>`;
       case 'C':
-        return `<svg viewBox="0 0 180 110" class="profile-schema">
-          <path d="M15 90 L15 55 L65 55 L65 25 L115 25 L115 55 L165 55 L165 90" ${pathAttrs}/>
-          <text x="8" y="74" fill="${txtAcc}" style="${fontMono}" text-anchor="middle" transform="rotate(-90 8 74)">A</text>
-          <text x="40" y="48" fill="${txtAcc}" style="${fontMono}" text-anchor="middle">B</text>
-          <text x="90" y="18" fill="${txtAcc}" style="${fontMono}" text-anchor="middle">C</text>
-          <text x="140" y="48" fill="${txtAcc}" style="${fontMono}" text-anchor="middle">D</text>
-          <text x="172" y="74" fill="${txtAcc}" style="${fontMono}" text-anchor="middle" transform="rotate(90 172 74)">E</text>
+        // C: A← (влево), B↓ (вниз), C→ (вправо), D↑ (вверх), E← (влево) — буква С
+        return `<svg viewBox="0 0 180 120" class="profile-schema">
+          <path d="M165 20 L25 20 L25 100 L165 100 L165 70" ${pathAttrs}/>
+          ${dot(25, 20)}
+          ${dot(25, 100)}
+          ${dot(165, 100)}
+          ${dot(165, 70)}
+          ${lbl(95, 12, 'B', 0)}
+          ${lbl(15, 60, 'A', -90)}
+          ${lbl(95, 112, 'C', 0)}
+          ${lbl(175, 85, 'D', 90)}
+          ${lbl(155, 50, 'E', -90)}
         </svg>`;
       default:
         return '';

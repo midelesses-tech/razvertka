@@ -1281,3 +1281,23 @@ input, select, button { font-size: 14px; }
   .premium-badge-btn span { display: none; }
   .premium-badge-btn { padding: 0; width: 34px; justify-content: center; }
 }
+
+/* ============================================================
+   SVG-СХЕМА ПРОФИЛЯ В SIDEBAR
+   ============================================================ */
+.profile-schema-box {
+  padding: 8px;
+  margin-bottom: 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  text-align: center;
+}
+.profile-schema-box:empty { display: none; }
+.profile-schema {
+  display: inline-block;
+  width: 100%;
+  max-width: 200px;
+  height: auto;
+  max-height: 90px;
+}
