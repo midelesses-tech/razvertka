@@ -55,14 +55,14 @@ function getClientIP(req: NextRequest): string {
 /** Security headers для всех ответов. */
 function addSecurityHeaders(res: NextResponse): NextResponse {
   res.headers.set('X-Content-Type-Options', 'nosniff');
-  res.headers.set('X-Frame-Options', 'SAMEORIGIN');
+  res.headers.set('X-Frame-Options', 'ALLOWALL');
   res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.headers.set('X-XSS-Protection', '1; mode=block');
   res.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-  // CSP — разрешаем inline styles (CSS-переменные), CDN для jsPDF, self
+  // CSP — разрешаем inline styles, CDN для jsPDF, self, и любые frame-ancestors (для preview-панели)
   res.headers.set(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'self';"
+    "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors *;"
   );
   return res;
 }
