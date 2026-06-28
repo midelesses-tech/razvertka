@@ -62,7 +62,7 @@ function addSecurityHeaders(res: NextResponse): NextResponse {
   // CSP — разрешаем inline styles, CDN для jsPDF, self, и любые frame-ancestors (для preview-панели)
   res.headers.set(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors *;"
+    "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors *;"
   );
   return res;
 }
