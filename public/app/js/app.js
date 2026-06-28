@@ -1142,11 +1142,13 @@ export class App {
 
     bar.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-export]');
-      if (!btn || btn.disabled) return;
+      if (!btn) return;
+      // Заблокированные кнопки (премиум) — показываем модалку тарифов
       if (btn.classList.contains('is-locked-wrap')) {
         showPremiumModal(btn.dataset.feature);
         return;
       }
+      if (btn.disabled) return;
       const fmt = btn.dataset.export;
       const route = this.router.route;
       this._doExport(fmt, route);
@@ -1160,6 +1162,12 @@ export class App {
         }
       });
       applyGating();
+      // PDF: убираем disabled, оставляем is-locked-wrap — клик откроет модалку
+      bar.querySelectorAll('[data-export="pdf"]').forEach((b) => {
+        if (b.classList.contains('is-locked-wrap')) {
+          b.disabled = false;
+        }
+      });
     });
   }
 
