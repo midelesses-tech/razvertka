@@ -44,6 +44,7 @@ export interface PublicUser {
   id: string;
   email: string;
   name: string | null;
+  role: string;
   plan: Plan;
   premium: boolean;
   premiumUntil: string | null;
@@ -309,6 +310,7 @@ export function toPublicUser(
     id: string;
     email: string;
     name: string | null;
+    role?: string;
     plan: string;
     premiumUntil: Date | string | null;
     emailVerified: Date | null;
@@ -320,6 +322,7 @@ export function toPublicUser(
     id: user.id,
     email: user.email,
     name: user.name,
+    role: user.role ?? 'user',
     plan: s.plan,
     premium: s.active,
     premiumUntil: user.premiumUntil
