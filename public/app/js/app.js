@@ -188,8 +188,8 @@ export class App {
     // Раскрой
     this.nestingParts = [{ w: 300, h: 500, qty: 8 }];
     this.nestingOpts = {
-      sheetWidth: 1250,
-      sheetHeight: 2500,
+      sheetWidth: 2500,
+      sheetHeight: 1250,
       kerf: 2,
       margin: 10,
       allowRotation: true,
@@ -400,8 +400,8 @@ export class App {
     }
     // Параметры раскроя
     const NEST_MAP = {
-      'sheet-length': 'sheetHeight',
-      'sheet-width': 'sheetWidth',
+      'sheet-length': 'sheetWidth',
+      'sheet-width': 'sheetHeight',
       'kerf': 'kerf',
       'margin': 'margin',
       'lock-rotation': 'allowRotation',
