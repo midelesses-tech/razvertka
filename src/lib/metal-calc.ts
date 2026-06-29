@@ -103,7 +103,7 @@ export function crossSectionArea(type: ProfileType, dims: Dimensions): number {
     }
     case "sheet":
       // Лист: площадь сечения = s × b (толщина × ширина)
-      return (s ?? 0) * (b ?? 1000);
+      return (s ?? 0) * (b ?? 0);
     case "hex":
       // Шестигранник (вписанная окружность d): (√3/2)·d²
       return (Math.sqrt(3) / 2) * (d ?? 0) ** 2;

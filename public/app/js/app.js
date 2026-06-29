@@ -200,7 +200,7 @@ export class App {
     this.mcMode = 'weight'; // weight | length
     this.mcProfile = 'round';
     this.mcMaterial = 'steel';
-    this.mcDims = { d: 20, s: 2, a: 20, b: 40, h: 50 };
+    this.mcDims = { d: 20, s: 2, a: 20, b: 40, h: 50, s2: 2 };
 
     // Кэш последних результатов
     this.lastUnfold = null;
@@ -1113,46 +1113,21 @@ export class App {
   _wireExportBar() {
     const bar = document.getElementById('export-bar');
     if (!bar) return;
-    bar.querySelectorAll('[data-export]').forEach((b) => {
-      const fmt = b.dataset.export;
-      if (fmt === 'pdf') b.setAttribute('data-feature', 'exportPDF');
-      if (fmt === 'dxf') b.setAttribute('data-feature', 'exportDXF');
-    });
 
     bar.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-export]');
-      if (!btn) return;
-      // Заблокированные кнопки (премиум) — показываем модалку тарифов
-      if (btn.classList.contains('is-locked-wrap')) {
-        showPremiumModal(btn.dataset.feature);
-        return;
-      }
-      if (btn.disabled) return;
+      if (!btn || btn.disabled) return;
       const fmt = btn.dataset.export;
       const route = this.router.route;
       this._doExport(fmt, route);
     });
 
+    // Все форматы доступны — без гейтинга
     eventBus.on('export:availability', ({ formats }) => {
       bar.querySelectorAll('[data-export]').forEach((b) => {
-        // Сначала снимаем disabled для всех, у кого есть формат
         if (formats.includes(b.dataset.export)) {
           b.disabled = false;
         }
-      });
-      // Применяем гейтинг (добавит is-locked-wrap для PDF без премиума)
-      applyGating();
-      // Для заблокированных — убираем disabled (клик откроет модалку)
-      bar.querySelectorAll('[data-export].is-locked-wrap').forEach((b) => {
-        b.disabled = false;
-      });
-    });
-
-    // При смене премиум-статуса — обновляем гейтинг
-    eventBus.on('flags:change', () => {
-      applyGating();
-      bar.querySelectorAll('[data-export].is-locked-wrap').forEach((b) => {
-        b.disabled = false;
       });
     });
   }

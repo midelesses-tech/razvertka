@@ -1344,3 +1344,11 @@ input, select, button { font-size: 14px; }
   .ad-block--header { min-width: 200px; min-height: 50px; }
   .ad-block--bottom { min-height: 50px; }
 }
+.ad-placeholder {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  opacity: .5;
+}
