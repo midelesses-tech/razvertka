@@ -26,7 +26,7 @@ function loadJsPDF() {
   return _jspdfPromise;
 }
 
-const SITE_NAME = 'металлораскрой.рф';
+const SITE_NAME = 'гибка-раскрой.рф';
 const PROFILE_NAMES = { L: 'Angle (L)', U: 'Channel (U)', G: 'G-profile', C: 'C-profile', custom: 'Custom' };
 
 /**

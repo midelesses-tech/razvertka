@@ -49,7 +49,7 @@ export const PLANS: Record<"month" | "year" | "lifetime", PlanConfig> = {
 
 export const SELLER_ID = process.env.DIGISELLER_SELLER_ID || "";
 export const API_TOKEN = process.env.DIGISELLER_API_TOKEN || "";
-export const APP_URL = process.env.APP_URL || "https://металлораскрой.рф";
+export const APP_URL = process.env.APP_URL || "https://гибка-раскрой.рф";
 
 /**
  * Интеграция считается настроенной, если заданы seller id, api token

@@ -1,4 +1,4 @@
-# robots.txt — металлораскрой.рф
+# robots.txt — гибка-раскрой.рф
 
 User-agent: Googlebot
 Allow: /
@@ -14,4 +14,4 @@ Disallow: /api/auth/
 Disallow: /api/premium/
 Disallow: /api/projects/
 
-Sitemap: https://металлораскрой.рф/sitemap.xml
+Sitemap: https://гибка-раскрой.рф/sitemap.xml
