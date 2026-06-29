@@ -1301,3 +1301,46 @@ input, select, button { font-size: 14px; }
   height: auto;
   max-height: 90px;
 }
+
+/* ============================================================
+   РЕКЛАМНЫЕ БЛОКИ
+   ============================================================ */
+.ad-block {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.ad-block--header {
+  min-height: 60px;
+  min-width: 468px;
+  max-width: 728px;
+}
+.ad-block--sidebar {
+  min-height: 400px;
+  width: 100%;
+  max-width: 200px;
+}
+.ad-block--bottom {
+  min-height: 90px;
+  width: 100%;
+  margin: 8px 0;
+}
+.ad-sidebar {
+  width: 200px;
+  flex-shrink: 0;
+  padding: 8px;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+}
+@media (max-width: 1024px) {
+  .ad-sidebar { display: none; }
+  .ad-block--header { min-width: 320px; }
+}
+@media (max-width: 600px) {
+  .ad-block--header { min-width: 200px; min-height: 50px; }
+  .ad-block--bottom { min-height: 50px; }
+}

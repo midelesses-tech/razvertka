@@ -30,15 +30,15 @@ import {
   generateUnfoldDXF, generateNestingDXF, downloadDXF,
 } from './modules/export-dxf.js';
 import { exportUnfoldPDF, exportNestingPDF } from './modules/export-pdf.js';
-import { initDevPanel, applyGating, showPremiumModal } from './modules/dev-panel.js';
-import { isPremium, setPremium, FEATURES } from './modules/feature-flags.js';
 import { numOrDefault, validateUnfoldParams, markInvalid, clearInvalid } from './utils/validators.js';
-import {
-  initAuth, login, register, logout, getUser, verifyEmail, resendCode,
-  setPlan, verifyPayment, checkPaymentStatus,
-  listProjects, createProject, getProject, deleteProject,
-  requestReset, resetPassword,
-} from './modules/auth.js';
+
+// Все функции бесплатны — премиум всегда включён
+const isPremium = () => true;
+const setPremium = () => {};
+const FEATURES = {};
+const showPremiumModal = () => {};
+const applyGating = () => {};
+const initDevPanel = () => {};
 
 const THEME_KEY = 'rzv:theme';
 
@@ -193,7 +193,7 @@ export class App {
       kerf: 2,
       margin: 10,
       allowRotation: true,
-      maxSheets: 1, // free = 1, premium = до 100
+      maxSheets: 50, // все функции бесплатны
     };
 
     // Металлокалькулятор
@@ -230,12 +230,9 @@ export class App {
     this._wireExportBar();
     this._initFlangeFields();
     this._initCustomEditor();
-    this._initDevPanel();
     this._initRenderers();
     this._initNestingParts();
-    this._initAuth();
     this._initMetalCalc();
-    this._wireAllModalClosers();
 
     this.setStatus('Готово', 'ok');
     eventBus.emit('app:ready', { ts: Date.now() });
@@ -410,21 +407,8 @@ export class App {
       // lock-rotation = true → allowRotation = false
       this.nestingOpts.allowRotation = !value;
     } else if (key === 'max-sheets') {
-      // max-sheets — гейтинг: бесплатно только 1
-      const max = Number(value) || 1;
-      if (max > 1 && !isPremium()) {
-        // Бесплатно — только 1 лист, сбрасываем
-        const inp = document.querySelector('[data-input="max-sheets"]');
-        if (inp) inp.value = '1';
-        this.nestingOpts.maxSheets = 1;
-        showPremiumModal('nestingSheets');
-        const hint = document.getElementById('ns-sheets-hint');
-        if (hint) hint.textContent = '1 лист — бесплатно. Больше — премиум.';
-      } else {
-        this.nestingOpts.maxSheets = max;
-        const hint = document.getElementById('ns-sheets-hint');
-        if (hint) hint.textContent = max > 1 ? `${max} листов (премиум).` : '1 лист — бесплатно. Больше — премиум.';
-      }
+      // Все функции бесплатны — без гейтинга
+      this.nestingOpts.maxSheets = Number(value) || 1;
     } else if (NEST_MAP[key]) {
       this.nestingOpts[NEST_MAP[key]] = value;
     }
@@ -458,12 +442,7 @@ export class App {
 
   _initCustomEditor() {
     document.getElementById('custom-add-segment')?.addEventListener('click', () => {
-      // Лимит 3 сегмента для бесплатной версии
-      const maxSegs = isPremium() ? 50 : 3;
-      if (this.customSegments.length >= maxSegs) {
-        showPremiumModal('customProfile');
-        return;
-      }
+      // Все функции бесплатны — без лимита
       this.customSegments.push({ length: 20, angle: 0 });
       this._renderCustomEditor();
     });

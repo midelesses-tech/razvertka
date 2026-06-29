@@ -54,32 +54,9 @@
       </nav>
 
       <div class="header__tools">
-        <button class="premium-badge-btn" id="premium-badge-btn" type="button" data-action="open-plans" title="Премиум-подписка">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-          <span>PREMIUM</span>
-        </button>
-        <button class="icon-btn" id="projects-btn" type="button" title="Проекты" aria-label="Проекты">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 3h10v9a2 2 0 0 1-2 2H3z"/></svg>
-        </button>
-        <button class="acct-btn" id="account-btn" type="button" aria-label="Аккаунт">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          <span id="acct-label">Войти</span>
-          <span class="acct-btn__plan" id="acct-plan" hidden>PRO</span>
-        </button>
-        <!-- dropdown личного кабинета -->
-        <div class="acct-menu" id="acct-menu" aria-hidden="true">
-          <button class="acct-menu__item" data-action="open-plans" type="button">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            Тарифы
-          </button>
-          <button class="acct-menu__item" id="acct-plans" data-action="open-projects" type="button" style="display:none">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 3h10v9a2 2 0 0 1-2 2H3z"/></svg>
-            Проекты
-          </button>
-          <button class="acct-menu__item acct-menu__item--danger" id="acct-logout" data-action="logout" type="button" style="display:none">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-            Выйти
-          </button>
+        <!-- Рекламный блок в шапке -->
+        <div class="ad-block ad-block--header" id="ad-header">
+          <!-- Реклама (Yandex.RTB или другая) -->
         </div>
         <button class="icon-btn" id="theme-toggle" type="button" title="Переключить тему" aria-label="Переключить тему">
           <svg class="icon-sun" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
@@ -302,6 +279,13 @@
         </section>
       </aside>
 
+      <!-- Рекламный блок в боковой панели -->
+      <aside class="ad-sidebar" aria-label="Реклама">
+        <div class="ad-block ad-block--sidebar" id="ad-sidebar">
+          <!-- Реклама (Yandex.RTB или другая) -->
+        </div>
+      </aside>
+
       <!-- ----- CENTER VIEW ----- -->
       <section class="app-canvas" aria-label="Визуализация">
 
@@ -406,20 +390,25 @@
     </main>
 
     <!-- ===================== FOOTER ===================== -->
+    <!-- Рекламный блок перед футером -->
+    <div class="ad-block ad-block--bottom" id="ad-bottom">
+      <!-- Реклама (Yandex.RTB или другая) -->
+    </div>
+
     <footer class="app-footer" role="contentinfo">
       <div class="footer__status">
         <span class="status-dot" id="status-dot"></span>
         <span id="status-text">Готово</span>
       </div>
       <div class="footer__meta">
-        <span class="footer__seg">Frontend-only · ES6-модули</span>
+        <span class="footer__seg">гибка-раскрой.рф</span>
         <span class="footer__sep">·</span>
-        <span class="footer__seg">Данные хранятся локально</span>
+        <span class="footer__seg">Все функции бесплатны</span>
       </div>
       <div class="footer__export" id="export-bar">
         <button class="chip" data-export="svg" disabled title="Экспорт SVG">SVG</button>
         <button class="chip" data-export="dxf" disabled title="Экспорт DXF">DXF</button>
-        <button class="chip" data-export="pdf" disabled title="Экспорт PDF" data-feature="exportPDF">PDF</button>
+        <button class="chip" data-export="pdf" disabled title="Экспорт PDF">PDF</button>
       </div>
     </footer>
   </div>
@@ -428,207 +417,6 @@
   <div class="toast-stack" id="toast-stack" aria-live="polite" aria-atomic="true"></div>
 
   <!-- Панель разработчика (Ctrl+Shift+D) -->
-  <aside class="dev-panel" id="dev-panel" role="dialog" aria-label="Панель разработчика" aria-hidden="true">
-    <div class="dev-panel__head">
-      <span class="dev-panel__title">Dev Panel <span class="dev-panel__badge is-off" id="dev-premium-badge">FREE</span></span>
-      <button class="dev-panel__close" id="dev-close" aria-label="Закрыть">×</button>
-    </div>
-    <div class="dev-panel__row">
-      <span class="label">Премиум-режим</span>
-      <button class="toggle" id="dev-premium-toggle" role="switch" aria-checked="false" aria-label="Премиум-режим"></button>
-    </div>
-    <div class="dev-panel__row">
-      <span class="label">Очистить проекты</span>
-      <button class="chip" id="dev-clear-projects" type="button">Очистить</button>
-    </div>
-    <p class="dev-panel__hint">
-      Эта панель видна только в режиме разработки. Включите премиум,
-      чтобы протестировать платные функции (PDF, безлимит, несколько листов).
-    </p>
-  </aside>
-
-  <!-- ===================== МОДАЛКИ ===================== -->
-
-  <!-- Модалка «Премиум» -->
-  <div class="modal-overlay" id="premium-modal" role="dialog" aria-modal="true" aria-labelledby="premium-title" aria-hidden="true">
-    <div class="modal glass--strong">
-      <div class="modal__icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-      </div>
-      <h3 class="modal__title" id="premium-title">Функция в премиуме</h3>
-      <p class="modal__text" id="premium-text">Эта возможность доступна в премиум-подписке.</p>
-      <div class="modal__actions">
-        <button class="btn btn--ghost" id="premium-close" type="button">Позже</button>
-        <button class="btn btn--primary" id="premium-try" type="button">Попробовать (Dev)</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Модалка авторизации -->
-  <div class="modal-overlay auth-modal" id="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title" aria-hidden="true">
-    <div class="modal glass--strong">
-      <button class="modal__close" id="auth-close" aria-label="Закрыть">×</button>
-      <h3 class="modal__title" id="auth-modal-title">Вход</h3>
-      <div class="auth-tabs" role="tablist">
-        <button class="auth-tab is-active" role="tab" data-action="switch-auth-tab" data-tab="login" aria-selected="true">Вход</button>
-        <button class="auth-tab" role="tab" data-action="switch-auth-tab" data-tab="register" aria-selected="false">Регистрация</button>
-      </div>
-      <div class="auth-form" data-tab="login register">
-        <div class="field-group">
-          <label class="field-label" for="auth-email">Email (.ru)</label>
-          <input class="input" id="auth-email" type="email" placeholder="user@example.ru" autocomplete="email" />
-        </div>
-        <div class="field-group">
-          <label class="field-label" for="auth-password">Пароль</label>
-          <input class="input" id="auth-password" type="password" autocomplete="current-password" />
-        </div>
-        <div class="field-group is-hidden" id="auth-password2-group">
-          <label class="field-label" for="auth-password2">Повторите пароль</label>
-          <input class="input" id="auth-password2" type="password" autocomplete="new-password" />
-        </div>
-        <div class="auth-form__error" id="auth-error"></div>
-        <button class="btn btn--primary btn--block" type="button" data-action="auth-submit">
-          <span id="auth-submit-label">Войти</span>
-        </button>
-        <button class="btn btn--ghost btn--block" type="button" data-action="open-reset" style="margin-top:8px;" id="forgot-btn">Забыли пароль?</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Модалка подтверждения email -->
-  <div class="modal-overlay" id="verify-modal" role="dialog" aria-modal="true" aria-labelledby="verify-title" aria-hidden="true">
-    <div class="modal glass--strong">
-      <button class="modal__close" id="verify-close" aria-label="Закрыть">×</button>
-      <h3 class="modal__title" id="verify-title">Подтверждение email</h3>
-      <p class="modal__text">Введите 6-значный код из письма.</p>
-      <div class="field-group">
-        <input class="input mono" id="verify-code" type="text" inputmode="numeric" maxlength="6" placeholder="000000" style="text-align:center; letter-spacing: 4px; font-size: 18px;" />
-      </div>
-      <div class="auth-form__error" id="verify-error"></div>
-      <div class="modal__actions">
-        <button class="btn btn--ghost" type="button" data-action="resend-code">Выслать код</button>
-        <button class="btn btn--primary" type="button" data-action="verify-submit">Подтвердить</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Модалка сброса пароля -->
-  <div class="modal-overlay" id="reset-modal" role="dialog" aria-modal="true" aria-labelledby="reset-title" aria-hidden="true">
-    <div class="modal glass--strong">
-      <button class="modal__close" id="reset-close" aria-label="Закрыть">×</button>
-      <h3 class="modal__title" id="reset-title">Сброс пароля</h3>
-      <!-- шаг 1: email -->
-      <div id="reset-step-email">
-        <div class="field-group">
-          <label class="field-label" for="reset-email">Email (.ru)</label>
-          <input class="input" id="reset-email" type="email" placeholder="user@example.ru" autocomplete="email" />
-        </div>
-        <div class="auth-form__error" id="reset-error"></div>
-        <button class="btn btn--primary btn--block" type="button" data-action="reset-request">Выслать код</button>
-      </div>
-      <!-- шаг 2: код + новый пароль -->
-      <div id="reset-step-password" class="is-hidden">
-        <div class="field-group">
-          <label class="field-label" for="reset-code">Код (6 цифр)</label>
-          <input class="input mono" id="reset-code" type="text" inputmode="numeric" maxlength="6" style="text-align:center; letter-spacing: 4px;" />
-        </div>
-        <div class="field-group">
-          <label class="field-label" for="reset-password">Новый пароль</label>
-          <input class="input" id="reset-password" type="password" autocomplete="new-password" />
-        </div>
-        <div class="auth-form__error" id="reset-error-2"></div>
-        <button class="btn btn--primary btn--block" type="button" data-action="reset-password">Сбросить пароль</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Модалка тарифов -->
-  <div class="modal-overlay plans-modal" id="plans-modal" role="dialog" aria-modal="true" aria-labelledby="plans-title" aria-hidden="true">
-    <div class="modal glass--strong" style="width: min(880px, 100%); text-align: left;">
-      <button class="modal__close" id="plans-close" aria-label="Закрыть">×</button>
-      <h3 class="modal__title" id="plans-title" style="text-align:center;">Тарифы</h3>
-      <p class="modal__text" style="text-align:center;">Выберите подходящий план. Демо — бесплатно на 24 часа.</p>
-      <div class="plans-grid">
-        <div class="plan-card">
-          <div class="plan-card__tag">DEMO</div>
-          <div class="plan-card__name">Демо на 24 часа</div>
-          <div class="plan-card__price">100 ₽</div>
-          <div class="plan-card__hint">или бесплатно через dev-панель</div>
-          <ul class="plan-card__list">
-            <li>Все премиум-функции</li>
-            <li>24 часа доступа</li>
-            <li>Без подписки</li>
-          </ul>
-          <button class="btn btn--ghost btn--block" type="button" data-action="set-plan" data-plan="demo">Активировать демо</button>
-        </div>
-        <div class="plan-card is-popular">
-          <div class="plan-card__tag">POPULAR</div>
-          <div class="plan-card__name">PRO (месяц)</div>
-          <div class="plan-card__price">1000 ₽</div>
-          <div class="plan-card__hint">30 дней полного доступа</div>
-          <ul class="plan-card__list">
-            <li>PDF-экспорт без водяных знаков</li>
-            <li>Несколько листов в раскрое</li>
-            <li>Безлимит проектов</li>
-            <li>Конструктор сечений</li>
-          </ul>
-          <button class="btn btn--primary btn--block" type="button" data-action="set-plan" data-plan="pro">Оформить PRO</button>
-        </div>
-        <div class="plan-card">
-          <div class="plan-card__tag">TEAM</div>
-          <div class="plan-card__name">TEAM (год)</div>
-          <div class="plan-card__price">2999 ₽</div>
-          <div class="plan-card__hint">365 дней для команды</div>
-          <ul class="plan-card__list">
-            <li>Всё из PRO</li>
-            <li>Годовой доступ</li>
-            <li>Приоритетная поддержка</li>
-            <li>CSV-импорт деталей</li>
-          </ul>
-          <button class="btn btn--ghost btn--block" type="button" data-action="set-plan" data-plan="team">Оформить TEAM</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Модалка ввода кода платежа -->
-  <div class="modal-overlay" id="payment-code-modal" role="dialog" aria-modal="true" aria-labelledby="payment-code-title" aria-hidden="true">
-    <div class="modal glass--strong">
-      <button class="modal__close" id="payment-code-close" aria-label="Закрыть">×</button>
-      <h3 class="modal__title" id="payment-code-title">Подтверждение платежа</h3>
-      <p class="modal__text">Введите 16-значный уникальный код из банковского перевода.</p>
-      <div class="field-group">
-        <input class="input mono" id="payment-code" type="text" inputmode="numeric" maxlength="16" placeholder="0000 0000 0000 0000" style="text-align:center; letter-spacing: 2px;" />
-      </div>
-      <div class="auth-form__error" id="payment-code-error"></div>
-      <div class="modal__actions">
-        <button class="btn btn--primary" type="button" data-action="payment-verify">Подтвердить</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Модалка проектов -->
-  <div class="modal-overlay projects-modal" id="projects-modal" role="dialog" aria-modal="true" aria-labelledby="projects-title" aria-hidden="true">
-    <div class="modal glass--strong" style="width: min(640px, 100%); text-align: left;">
-      <button class="modal__close" id="projects-close" aria-label="Закрыть">×</button>
-      <h3 class="modal__title" id="projects-title" style="text-align:center;">Проекты</h3>
-      <div class="field-group">
-        <label class="field-label" for="project-name">Имя нового проекта</label>
-        <div style="display:flex; gap:8px;">
-          <input class="input" id="project-name" type="text" placeholder="Например, Швеллер 80×40" />
-          <select class="select" id="project-type" style="max-width:140px;">
-            <option value="unfold">Развёртка</option>
-            <option value="nesting">Раскрой</option>
-          </select>
-          <button class="btn btn--primary" type="button" data-action="project-save">Сохранить</button>
-        </div>
-        <div class="auth-form__error" id="projects-error"></div>
-      </div>
-      <div class="subhead">Сохранённые проекты</div>
-      <div class="projects-list" id="projects-list"></div>
-    </div>
-  </div>
-
-  <script type="module" src="js/main.js?v=11"></script>
+  <script type="module" src="js/main.js?v=20"></script>
 </body>
 </html>
