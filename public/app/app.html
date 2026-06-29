@@ -108,6 +108,15 @@
                 <label class="field-label" for="uf-angle">Угол гиба A, °</label>
                 <input class="input" id="uf-angle" type="number" min="0" max="180" step="1" value="90" data-input="angle" />
               </div>
+              <div class="field-group">
+                <label class="field-label" for="uf-method">Метод расчёта</label>
+                <div class="select-wrap">
+                  <select class="select" id="uf-method" data-input="calc-method">
+                    <option value="onlinerazvertka">Onlinerazvertka (DIN)</option>
+                    <option value="gost">ГОСТ / Компас-3D</option>
+                  </select>
+                </div>
+              </div>
             </div>
 
             <div class="field-group" id="flange-fields-group">

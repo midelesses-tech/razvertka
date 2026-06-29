@@ -171,9 +171,9 @@ export function buildStandardProfile(kind, dims) {
  */
 export function calculateUnfold(segments, params) {
   const { thickness: S, radius: R } = params;
-  // K-фактор определяется автоматически по таблице R/S (как onlinerazvertka.ru).
-  // При R/S→∞ K стремится к 0.5 (средняя линия); при малом R/S — к 0.33.
-  const k = kFactorByRS(R, S);
+  const method = params.method || 'onlinerazvertka';
+  // K-фактор определяется автоматически по таблице R/S
+  const k = kFactorByRS(R, S, method);
 
   let totalLength = 0;
   const bends = [];

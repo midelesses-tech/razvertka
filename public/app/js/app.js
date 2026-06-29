@@ -172,6 +172,7 @@ export class App {
       thickness: 2,
       radius: 3,
       angle: 90,
+      calcMethod: 'onlinerazvertka',
       arcRadius: 120,
       flangeA: 50,
       flangeB: 50,
@@ -389,6 +390,7 @@ export class App {
       'radius': 'radius',
       'angle': 'angle',
       'arc-radius': 'arcRadius',
+      'calc-method': 'calcMethod',
     };
     const paramName = DOM_TO_PARAM[key];
     if (paramName && paramName in this.unfoldParams) {
@@ -786,7 +788,7 @@ export class App {
         segs.push({ type: 'flat', length: s.length, label: `Сегмент ${i + 1}`, tag: `seg-${i}` });
         if (s.angle > 0) segs.push({ type: 'bend', angle: s.angle, radius: p.radius, label: `Гиб ${i + 1}` });
       }
-      const calc = calculateUnfold(segs, { thickness: p.thickness, radius: p.radius });
+      const calc = calculateUnfold(segs, { thickness: p.thickness, radius: p.radius, method: p.calcMethod || 'onlinerazvertka' });
       const firstBend = calc.bends[0] || {};
       result = {
         ok: true,
@@ -838,7 +840,7 @@ export class App {
       });
       const segs = built.segments;
       const startDir = built.startDir;
-      const calc = calculateUnfold(segs, { thickness: p.thickness, radius: p.radius });
+      const calc = calculateUnfold(segs, { thickness: p.thickness, radius: p.radius, method: p.calcMethod || 'onlinerazvertka' });
       const firstBend = calc.bends[0] || {};
       result = {
         ok: true,
